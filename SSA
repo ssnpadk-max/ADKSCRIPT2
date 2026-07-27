@@ -1,6 +1,7 @@
 --[[
-📜 LUX-ADK SCRIPT V8.0 (Waypoint & Safe Glide Master Edition)
-🎯 Precise Coordinates Auto-Farm | World 1, 2, 3 Supported | No Death Bug
+📜 LUX-ADK SCRIPT V2.5 (Follow Gate & Waypoint Master)
+🎯 World 2 & World 3 Auto-Farm
+🔒 Follow Check Required: @ldl_160100
 🛡️ Anti-Kick & Hazard Bypass | WindUI Integrated
 --]]
 
@@ -31,11 +32,12 @@ local StarterGui        = game:GetService("StarterGui")
 local RunService        = game:GetService("RunService")
 local VirtualUser       = game:GetService("VirtualUser")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local HttpService       = game:GetService("HttpService")
 
 local player     = Players.LocalPlayer
 local Camera     = workspace.CurrentCamera
 
--- إعدادات السكربت
+-- إعدادات السكربت V2.5
 local Cfg = {
     AutoFarmActive  = false,
     SelectedWorld   = "World 3",
@@ -59,7 +61,7 @@ local IsRespawning = false
 local function notify(title, text, duration)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
-            Title = title or "LUX-ADK 🚀",
+            Title = title or "LUX-ADK V2.5 🚀",
             Text = text or "",
             Duration = duration or 3
         })
@@ -67,7 +69,109 @@ local function notify(title, text, duration)
 end
 
 --======================================
--- 3. قوائم الإحداثيات الدقيقة (Waypoints Data)
+-- 3. نظام التحقق بالمتابعة (Roblox Follow Verification)
+--======================================
+local TargetUsername = "ldl_160100"
+
+local function CheckFollowStatus()
+    local isFollowing = false
+    pcall(function()
+        local targetId = Players:GetUserIdFromNameAsync(TargetUsername)
+        local myId = player.UserId
+        local url = "https://friends.roblox.com/v1/users/" .. myId .. "/followings?limit=100"
+        local rawResponse = game:HttpGet(url)
+        local response = HttpService:JSONDecode(rawResponse)
+        
+        if response and response.data then
+            for _, user in ipairs(response.data) do
+                if user.id == targetId or user.username == TargetUsername then
+                    isFollowing = true
+                    break
+                end
+            end
+        end
+    end)
+    return isFollowing
+end
+
+local function RequireFollowSystem()
+    if CheckFollowStatus() then
+        notify("تم التحقق ✅", "شكراً لمتابعتك @" .. TargetUsername .. "! جاري فتح السكربت...", 4)
+        return true
+    end
+
+    local followPassed = false
+    local FollowGui = Instance.new("ScreenGui", game.CoreGui)
+    FollowGui.Name = "LuxFollowSystem"
+    
+    local MainFrame = Instance.new("Frame", FollowGui)
+    MainFrame.Size = UDim2.new(0, 340, 0, 240)
+    MainFrame.Position = UDim2.new(0.5, -170, 0.5, -120)
+    MainFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+    MainFrame.Active = true; MainFrame.Draggable = true
+    Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+
+    local Title = Instance.new("TextLabel", MainFrame)
+    Title.Size = UDim2.new(1, 0, 0, 35)
+    Title.Position = UDim2.new(0, 0, 0, 10)
+    Title.Text = "🔒 نظام التحقق بالمتابعة - V2.5"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.Font = Enum.Font.GothamBold; Title.TextSize = 14; Title.BackgroundTransparency = 1
+
+    local Desc = Instance.new("TextLabel", MainFrame)
+    Desc.Size = UDim2.new(0.9, 0, 0, 45)
+    Desc.Position = UDim2.new(0.05, 0, 0, 45)
+    Desc.Text = "لتشغيل السكربت، يجب عليك متابعة الحساب:\n@" .. TargetUsername .. " في Roblox"
+    Desc.TextColor3 = Color3.fromRGB(200, 200, 200)
+    Desc.Font = Enum.Font.GothamMedium; Desc.TextSize = 12; Desc.BackgroundTransparency = 1; Desc.TextWrapped = true
+
+    local CopyBtn = Instance.new("TextButton", MainFrame)
+    CopyBtn.Size = UDim2.new(0.85, 0, 0, 34); CopyBtn.Position = UDim2.new(0.075, 0, 0, 105)
+    CopyBtn.Text = "📋 نسخ اسم اليوزر (" .. TargetUsername .. ")"
+    CopyBtn.TextColor3 = Color3.new(1, 1, 1)
+    CopyBtn.Font = Enum.Font.GothamBold; CopyBtn.BackgroundColor3 = Color3.fromRGB(40, 40, 40)
+    Instance.new("UICorner", CopyBtn).CornerRadius = UDim.new(0, 6)
+
+    CopyBtn.MouseButton1Click:Connect(function()
+        if setclipboard then
+            setclipboard(TargetUsername)
+            CopyBtn.Text = "✅ تم نسخ اسم اليوزر!"
+            task.wait(1.5)
+            CopyBtn.Text = "📋 نسخ اسم اليوزر (" .. TargetUsername .. ")"
+        end
+    end)
+
+    local CheckBtn = Instance.new("TextButton", MainFrame)
+    CheckBtn.Size = UDim2.new(0.85, 0, 0, 38); CheckBtn.Position = UDim2.new(0.075, 0, 0, 150)
+    CheckBtn.Text = "🔄 تأكد من المتابعة"
+    CheckBtn.TextColor3 = Color3.new(1, 1, 1)
+    CheckBtn.Font = Enum.Font.GothamBold; CheckBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+    Instance.new("UICorner", CheckBtn).CornerRadius = UDim.new(0, 6)
+
+    CheckBtn.MouseButton1Click:Connect(function()
+        CheckBtn.Text = "⏳ جاري التحقق..."
+        task.wait(0.8)
+        if CheckFollowStatus() then
+            followPassed = true
+            FollowGui:Destroy()
+            notify("تم التحقق بنجاح ✅", "أهلاً بك في السكربت V2.5!", 3)
+        else
+            CheckBtn.Text = "❌ لم تقم بالمتابعة بعد!"
+            CheckBtn.BackgroundColor3 = Color3.fromRGB(180, 40, 40)
+            task.wait(1.5)
+            CheckBtn.Text = "🔄 تأكد من المتابعة"
+            CheckBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+        end
+    end)
+
+    repeat task.wait(0.1) until followPassed
+    return true
+end
+
+RequireFollowSystem()
+
+--======================================
+-- 4. قوائم الإحداثيات (Waypoints Data)
 --======================================
 local WaypointsData = {
     W3_Part1 = {
@@ -130,10 +234,9 @@ local WaypointsData = {
 }
 
 --======================================
--- 4. المحركات المساعدة (Core Logic Functions)
+-- 5. المحركات المساعدة (Core Logic Functions)
 --======================================
 
--- تنظيف الأجزاء القاتلة والمخاطر
 local function CleanHazards()
     pcall(function()
         for _, name in ipairs({"Lava_Stage3", "NPC_Zone5", "MovingWalls"}) do
@@ -151,7 +254,6 @@ local function CleanHazards()
     end)
 end
 
--- التحكم في طيران وقوف الشخصية (Hover Velocity)
 local function SetHoverVelocity(active)
     local char = player.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -170,7 +272,6 @@ local function SetHoverVelocity(active)
     end
 end
 
--- إلغاء الـ Tween الحالي
 local function CancelTween()
     if CurrentTween then
         CurrentTween:Cancel()
@@ -178,7 +279,6 @@ local function CancelTween()
     end
 end
 
--- بناء مسار النقاط حسب الخيار المحدد
 local function BuildFarmPath()
     local path = {}
     if Cfg.SelectedWorld == "World 3" then
@@ -194,7 +294,7 @@ local function BuildFarmPath()
         elseif Cfg.SelectedTarget == "فارم 2b كأس" then
             for _, v in ipairs(WaypointsData.W3_Part1) do table.insert(path, v) end
             for _, v in ipairs(WaypointsData.W3_Part2) do table.insert(path, v) end
-        else -- فارم 1.2b كأس
+        else
             for _, v in ipairs(WaypointsData.W3_Part1) do table.insert(path, v) end
         end
     elseif Cfg.SelectedWorld == "World 2" then
@@ -209,7 +309,6 @@ local function BuildFarmPath()
     return path
 end
 
--- الانزلاق نحو نقطة معينة (Waypoint Tween)
 local function TweenToPosition(targetPos)
     if IsRespawning then return false end
     
@@ -242,7 +341,6 @@ local function TweenToPosition(targetPos)
     return true
 end
 
--- الانزلاق نحو بلوك الفوز المباشر (WinBlock)
 local function TweenToWinBlock(blockName, fallbackPos)
     local char = player.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
@@ -261,7 +359,6 @@ local function TweenToWinBlock(blockName, fallbackPos)
     CurrentTween.Completed:Wait()
 end
 
--- تثبيت الحركة وتجنب الوقوع في حالة Ragdoll
 local function StartStateKeeper()
     if HeartbeatConn then HeartbeatConn:Disconnect() end
     HeartbeatConn = RunService.Heartbeat:Connect(function()
@@ -277,7 +374,6 @@ local function StartStateKeeper()
     end)
 end
 
--- محرك الفارمنج الرئيسي (Main Auto Farm Loop)
 local function StartWaypointAutoFarm()
     if Cfg.AutoFarmActive then return end
     Cfg.AutoFarmActive = true
@@ -312,7 +408,6 @@ local function StartWaypointAutoFarm()
                 end
             end
             
-            -- الوصول للـ WinBlock النهائي
             if Cfg.AutoFarmActive and not IsRespawning then
                 if Cfg.SelectedWorld == "World 2" then
                     if Cfg.SelectedTarget == "فارم 600k كأس" then
@@ -351,59 +446,12 @@ local function StopWaypointAutoFarm()
 end
 
 --======================================
--- 5. نظام المفاتيح والتحقق
---======================================
-local function KeySystemCheck()
-    local keyPassed = false
-    local KeyGui = Instance.new("ScreenGui", game.CoreGui)
-    KeyGui.Name = "LuxKeySystem"
-    
-    local KeyFrame = Instance.new("Frame", KeyGui)
-    KeyFrame.Size = UDim2.new(0, 320, 0, 220)
-    KeyFrame.Position = UDim2.new(0.5, -160, 0.5, -110)
-    KeyFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
-    KeyFrame.Active = true; KeyFrame.Draggable = true
-    Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 12)
-    
-    local Title = Instance.new("TextLabel", KeyFrame)
-    Title.Size = UDim2.new(1, 0, 0, 30); Title.Position = UDim2.new(0, 0, 0, 10)
-    Title.Text = "🔑 نظام التحقق - LUX-ADK"; Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.Font = Enum.Font.GothamBold; Title.TextSize = 14; Title.BackgroundTransparency = 1
-    
-    local KeyInput = Instance.new("TextBox", KeyFrame)
-    KeyInput.Size = UDim2.new(0.85, 0, 0, 32); KeyInput.Position = UDim2.new(0.075, 0, 0, 80)
-    KeyInput.PlaceholderText = "أدخل المفتاح (dogsken1)..."; KeyInput.TextColor3 = Color3.new(1, 1, 1)
-    KeyInput.BackgroundColor3 = Color3.fromRGB(30, 30, 30); KeyInput.Font = Enum.Font.GothamMedium
-    Instance.new("UICorner", KeyInput).CornerRadius = UDim.new(0, 6)
-    
-    local CheckBtn = Instance.new("TextButton", KeyFrame)
-    CheckBtn.Size = UDim2.new(0.85, 0, 0, 32); CheckBtn.Position = UDim2.new(0.075, 0, 0, 130)
-    CheckBtn.Text = "تفعيل اللوحة"; CheckBtn.TextColor3 = Color3.new(1, 1, 1)
-    CheckBtn.Font = Enum.Font.GothamBold; CheckBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-    Instance.new("UICorner", CheckBtn).CornerRadius = UDim.new(0, 6)
-    
-    CheckBtn.MouseButton1Click:Connect(function()
-        if KeyInput.Text == "dogsken1" or KeyInput.Text == "DOGSKEN1" then
-            keyPassed = true; KeyGui:Destroy()
-        else
-            CheckBtn.Text = "❌ مفتاح خاطئ!"; CheckBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
-            task.wait(1.5); CheckBtn.Text = "تفعيل اللوحة"; CheckBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
-        end
-    end)
-    
-    repeat task.wait(0.1) until keyPassed
-    return true
-end
-
-KeySystemCheck()
-
---======================================
--- 6. تحميل واجهة WindUI
+-- 6. تحميل واجهة WindUI V2.5
 --======================================
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "LUX-ADK V8.0 🚀 (Waypoint Master)",
+    Title = "LUX-ADK V2.5 🚀",
     Icon = "shield-check",
     Theme = "Dark",
 })
@@ -414,10 +462,8 @@ local PremiumTab  = Window:Tab({ Title = "VIP Premium", Icon = "crown" })
 local SettingsTab = Window:Tab({ Title = "Settings", Icon = "settings" })
 
 --======================================
--- 7. قسم الأوتو فارم (Auto Farm Tab)
+-- 7. قسم الأوتو فارم (World 2 & 3)
 --======================================
-
-local TargetDropdown
 
 FarmTab:Dropdown({
     Title = "🗺️ اختر العالم المستهدف",
@@ -464,11 +510,11 @@ FarmTab:Dropdown({
 })
 
 FarmTab:Toggle({
-    Title = "🤖 تشغيل Auto Farm الإحداثيات (Waypoint Engine)",
+    Title = "🤖 تشغيل Auto Farm الإحداثيات",
     Value = false,
     Callback = function(v)
         if v then
-            notify("Safe Farm 🚀", "بدء الأوتو فارم القائم على الإحداثيات...", 3)
+            notify("Safe Farm 🚀", "بدء الأوتو فارم...", 3)
             StartWaypointAutoFarm()
         else
             notify("إيقاف 🛑", "تم إيقاف الأوتو فارم.", 2)
@@ -493,7 +539,7 @@ FarmTab:Button({
             end
         end
         if count > 0 then
-            notify("Remote Win ⚡", "تم إرسال " .. count .. " إشارة فوز للسيرفر!")
+            notify("Remote Win ⚡", "تم إرسال " .. count .. " إشارة فوز!")
         else
             notify("تنبيه ⚠️", "لم يتم العثور على ريموت فوز مباشر في ذاكرة اللعبة.")
         end
@@ -601,7 +647,7 @@ pcall(function()
 end)
 
 PremiumTab:Toggle({
-    Title = "🛡️ Anti-AFK (تجميع مستمر دون طرد)",
+    Title = "🛡️ Anti-AFK (تجميع مستمر)",
     Value = true,
     Callback = function(v) Cfg.AntiAFK = v end
 })
@@ -612,8 +658,9 @@ SettingsTab:Button({
         StopWaypointAutoFarm()
         StopFly()
         Window:Destroy()
-        notify("إغلاق", "تم إيقاف السكربت!")
+        notify("إغلاق", "تم إيقاف السكربت V2.5!")
     end
 })
 
-notify("LUX-ADK V8.0 Ready", "جاهز! تم دمج نظام الإحداثيات وحماية الخمول بنجاح.", 5)
+notify("LUX-ADK V2.5 Ready", "تم التفعيل بنجاح! شكراً لمتابعتك @" .. TargetUsername, 5)
+
