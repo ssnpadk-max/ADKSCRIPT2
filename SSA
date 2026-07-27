@@ -1,5 +1,5 @@
---[[
-📜 LUX-ADK SCRIPT V2.5 (Follow Gate & Waypoint Master)
+Enter--[[
+📜 LUX-ADK SCRIPT V2.5 (Follow Gate, Waypoint Master & Single-Use Codes System)
 🎯 World 2 & World 3 Auto-Farm
 🔒 Follow Check Required: @ldl_160100
 🛡️ Anti-Kick & Hazard Bypass | WindUI Integrated
@@ -69,7 +69,87 @@ local function notify(title, text, duration)
 end
 
 --======================================
--- 3. نظام التحقق بالمتابعة (Roblox Follow Verification)
+-- 3. نظام البريميوم والكودات (40 كود جديد معقد)
+--======================================
+local codesFileName = "lux_codes_v2.json"
+
+local premiumWhitelist = {
+    ["ldl_160100"] = true,
+    ["rayan_58060"] = true,
+}
+
+-- قائمة 40 كود غير متكررة وطويلة جداً
+local validCodes = {
+    ["ADHOPHUPSS-K982-FX71-M904"] = true,
+    ["ADHOPHUPSS-91XZ-L48P-Q219"] = true,
+    ["ADHOPHUPSS-78BV-M201-P93K"] = true,
+    ["ADHOPHUPSS-R409-Z81L-W52D"] = true,
+    ["ADHOPHUPSS-31NM-G94J-X82V"] = true,
+    ["ADHOPHUPSS-L72Q-90P1-K85R"] = true,
+    ["ADHOPHUPSS-Z819-W4M2-V73C"] = true,
+    ["ADHOPHUPSS-B920-X1L8-J47P"] = true,
+    ["ADHOPHUPSS-Q582-R90K-N14M"] = true,
+    ["ADHOPHUPSS-48V1-C29X-L80Z"] = true,
+    ["ADHOPHUPSS-G918-J37P-W20R"] = true,
+    ["ADHOPHUPSS-M704-K81V-Z92Q"] = true,
+    ["ADHOPHUPSS-P829-L10X-C47N"] = true,
+    ["ADHOPHUPSS-X391-V82M-R04B"] = true,
+    ["ADHOPHUPSS-10ZK-W94P-L28J"] = true,
+    ["ADHOPHUPSS-C827-M01R-X94V"] = true,
+    ["ADHOPHUPSS-N940-K28L-P17Q"] = true,
+    ["ADHOPHUPSS-V182-Z74X-J09W"] = true,
+    ["ADHOPHUPSS-L039-R81V-M42P"] = true,
+    ["ADHOPHUPSS-K821-X90Z-Q47L"] = true,
+    ["ADHOPHUPSS-74PM-W81C-V20B"] = true,
+    ["ADHOPHUPSS-R902-L48J-Z19X"] = true,
+    ["ADHOPHUPSS-M184-P29V-K07Q"] = true,
+    ["ADHOPHUPSS-J390-X81R-C42L"] = true,
+    ["ADHOPHUPSS-W821-V04P-Z97M"] = true,
+    ["ADHOPHUPSS-P479-K18Z-L20R"] = true,
+    ["ADHOPHUPSS-Z102-X94V-Q82C"] = true,
+    ["ADHOPHUPSS-C984-L20M-P71J"] = true,
+    ["ADHOPHUPSS-K301-R84P-X92V"] = true,
+    ["ADHOPHUPSS-V829-Z01C-W47N"] = true,
+    ["ADHOPHUPSS-L470-M92R-K18P"] = true,
+    ["ADHOPHUPSS-Q291-P80X-Z47L"] = true,
+    ["ADHOPHUPSS-X814-V29C-M07R"] = true,
+    ["ADHOPHUPSS-R072-K94P-L18Z"] = true,
+    ["ADHOPHUPSS-M921-J04V-C82Q"] = true,
+    ["ADHOPHUPSS-P804-X18R-Z92L"] = true,
+    ["ADHOPHUPSS-Z471-C29P-K08M"] = true,
+    ["ADHOPHUPSS-L189-V94X-R20J"] = true,
+    ["ADHOPHUPSS-K024-P81M-Z79C"] = true,
+    ["ADHOPHUPSS-V941-R02L-X48P"] = true
+}
+
+local codeData = {
+    usedCodes = {},
+    premiumUntil = 0
+}
+
+if readfile and isfile and isfile(codesFileName) then
+    pcall(function()
+        local decoded = HttpService:JSONDecode(readfile(codesFileName))
+        if type(decoded) == "table" then codeData = decoded end
+    end)
+end
+
+local function saveCodeData()
+    if writefile then
+        pcall(function() writefile(codesFileName, HttpService:JSONEncode(codeData)) end)
+    end
+end
+
+local function isPremiumActive()
+    if premiumWhitelist[player.Name] then return true end
+    if codeData.premiumUntil and os.time() < codeData.premiumUntil then return true end
+    return false
+end
+
+local isPremiumUser = isPremiumActive()
+
+--======================================
+-- 4. نظام التحقق بالمتابعة (Roblox Follow Verification)
 --======================================
 local TargetUsername = "ldl_160100"
 
@@ -171,7 +251,7 @@ end
 RequireFollowSystem()
 
 --======================================
--- 4. قوائم الإحداثيات (Waypoints Data)
+-- 5. قوائم الإحداثيات (Waypoints Data)
 --======================================
 local WaypointsData = {
     W3_Part1 = {
@@ -234,7 +314,7 @@ local WaypointsData = {
 }
 
 --======================================
--- 5. المحركات المساعدة (Core Logic Functions)
+-- 6. المحركات المساعدة (Core Logic Functions)
 --======================================
 
 local function CleanHazards()
@@ -446,7 +526,7 @@ local function StopWaypointAutoFarm()
 end
 
 --======================================
--- 6. تحميل واجهة WindUI V2.5
+-- 7. تحميل واجهة WindUI V2.5
 --======================================
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
@@ -459,10 +539,11 @@ local Window = WindUI:CreateWindow({
 local FarmTab     = Window:Tab({ Title = "Auto Farm", Icon = "zap" })
 local MoveTab     = Window:Tab({ Title = "Movement", Icon = "plane" })
 local PremiumTab  = Window:Tab({ Title = "VIP Premium", Icon = "crown" })
+local CodesTab    = Window:Tab({ Title = "Codes", Icon = "key" })
 local SettingsTab = Window:Tab({ Title = "Settings", Icon = "settings" })
 
 --======================================
--- 7. قسم الأوتو فارم (World 2 & 3)
+-- 8. قسم الأوتو فارم (World 2 & 3)
 --======================================
 
 FarmTab:Dropdown({
@@ -547,7 +628,7 @@ FarmTab:Button({
 })
 
 --======================================
--- 8. قسم الحركة والخدمات (Movement Tab)
+-- 9. قسم الحركة والخدمات (Movement Tab)
 --======================================
 
 local FlyBV, FlyBG, FlyConn
@@ -634,7 +715,7 @@ RunService.Stepped:Connect(function()
 end)
 
 --======================================
--- 9. حماية الخمول وإغلاق السكربت
+-- 10. حماية الخمول والبريميوم
 --======================================
 pcall(function()
     player.Idled:Connect(function()
@@ -652,6 +733,54 @@ PremiumTab:Toggle({
     Callback = function(v) Cfg.AntiAFK = v end
 })
 
+--======================================
+-- 11. قسم الكودات (Single-Use Verification)
+--======================================
+local inputCodeText = ""
+CodesTab:Input({
+    Title = "أدخل كود البريميوم",
+    Placeholder = "أدخل الكود هنا...",
+    Callback = function(txt)
+        inputCodeText = txt
+    end
+})
+
+CodesTab:Button({
+    Title = "تفعيل الكود 🎁",
+    Callback = function()
+        local inputCode = string.upper(string.gsub(inputCodeText, "%s+", ""))
+        if inputCode == "" then
+            notify("تنبيه ⚠️", "يرجى كتابة الكود أولاً!", 3)
+            return
+        end
+
+        if not validCodes[inputCode] then
+            notify("خطأ ❌", "الكود غير صحيح أو غير موجود!", 3)
+            return
+        end
+
+        if codeData.usedCodes[inputCode] then
+            notify("خطأ ❌", "هذا الكود تم استخدامه وحرقه مسبقاً!", 3)
+            return
+        end
+
+        -- حرق الكود وتسجيل استخدامه فوراً
+        codeData.usedCodes[inputCode] = true
+        validCodes[inputCode] = nil
+        
+        local currentTime = os.time()
+        local currentExpiry = (codeData.premiumUntil and codeData.premiumUntil > currentTime) and codeData.premiumUntil or currentTime
+        codeData.premiumUntil = currentExpiry + (7 * 24 * 60 * 60)
+        saveCodeData()
+
+        isPremiumUser = true
+        notify("مبروك! 🌟", "🎉 تم تفعيل الكود بنجاح وحرقه! حصلت على 7 أيام VIP.", 5)
+    end
+})
+
+--======================================
+-- 12. الإعدادات وإغلاق السكربت
+--======================================
 SettingsTab:Button({
     Title = "❌ إغلاق السكربت",
     Callback = function()
@@ -663,4 +792,3 @@ SettingsTab:Button({
 })
 
 notify("LUX-ADK V2.5 Ready", "تم التفعيل بنجاح! شكراً لمتابعتك @" .. TargetUsername, 5)
-
