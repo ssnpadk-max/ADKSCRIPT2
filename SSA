@@ -1,12 +1,12 @@
 --[[
-📜 LUX-ADK SCRIPT V5.0 (Full Auto-Farm & Multi-World Master)
-🤖 100% Fully Automatic Farm | Anti-Kick | WindUI Integrated
+📜 LUX-ADK SCRIPT V6.0 (Multi-World Fix & Target Scanner)
+🎯 Fixed World 2/3 & Multi-Wins Bug | Anti-Kick | WindUI Integrated
 --]]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 --======================================
--- 1. نظام حماية ومنع الطرد (Anti-Kick Hook)
+-- 1. حماية وتجاوز نظام الطرد (Anti-Kick Hook)
 --======================================
 pcall(function()
     local oldNamecall
@@ -38,9 +38,10 @@ local codesFileName = "lux_codes_v2.json"
 -- إعدادات السكربت
 local Cfg = {
     AutoFarmActive  = false,
-    SelectedWorld   = "Auto Detect", -- "Auto Detect", "World 1", "World 2", "World 3"
-    FarmSpeed       = 70,            -- سرعة تنقل موزونة تمنع الكشف
+    SelectedWorld   = "World 1", -- "World 1", "World 2", "World 3", "Auto Detect"
+    FarmSpeed       = 75,
     AutoRespawn     = true,
+    ManualSelectedPad = nil,     -- نقطة تم اختيارها يدويًا من الفحص
     
     Fly             = false,
     FlySpeed        = 90,
@@ -50,7 +51,6 @@ local Cfg = {
     AntiAFK         = true
 }
 
--- دالة الإشعارات
 local function notify(title, text, duration)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
@@ -62,66 +62,111 @@ local function notify(title, text, duration)
 end
 
 --======================================
--- 3. المحرك الذكي للبحث عن منطقة الفوز (Auto Target Finder)
+-- 3. المحرك الذكي المطور للتمييز بين العوالم (World-Aware Finder)
 --======================================
 local ignoreList = {"leaderboard", "board", "display", "gui", "ui", "stat", "top", "rank", "podium", "sign", "wall", "text", "spawn", "lobby", "shop"}
-local winKeywords = {"finish", "win", "endpad", "chest", "goal", "trophy", "final", "rewardpad"}
+local winKeywords = {"finish", "win", "endpad", "chest", "goal", "trophy", "final", "rewardpad", "door"}
 
-local function GetAutoWinPart()
-    -- البحث في الخريطة عن خط النهاية أو الصندوق
+local FoundPadsList = {}
+
+local function ScanAndGetWinPart()
+    -- إذا قام المستخدم بانتخاب نقطة محددة من القائمة
+    if Cfg.ManualSelectedPad and Cfg.ManualSelectedPad.Parent then
+        return Cfg.ManualSelectedPad
+    end
+
+    local candidates = {}
+    local targetWorldNum = tonumber(string.match(Cfg.SelectedWorld or "", "%d+")) -- 1 أو 2 أو 3
+
     for _, obj in pairs(workspace:GetDescendants()) do
         if (obj:IsA("BasePart") or obj:IsA("Model")) and not obj:IsDescendantOf(player.Character or game) then
             local name = obj.Name:lower()
-            
-            -- التأكد من عدم وجود الكلمة في قائمة الحظر
+            local parentName = obj.Parent and obj.Parent.Name:lower() or ""
+            local fullName = obj:GetFullName():lower()
+
+            -- استبعاد الشاشات والليدربورد
             local isIgnored = false
             for _, bad in ipairs(ignoreList) do
-                if name:find(bad) then
+                if name:find(bad) or parentName:find(bad) then
                     isIgnored = true
                     break
                 end
             end
-            
+
             if not isIgnored then
+                -- الفحص عن كلمات الكسب والـ Wins
+                local isWin = false
                 for _, winKw in ipairs(winKeywords) do
-                    if name:find(winKw) then
-                        if obj:IsA("Model") then
-                            local primary = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
-                            if primary then return primary end
-                        elseif obj:IsA("BasePart") then
-                            return obj
-                        end
+                    if name:find(winKw) or parentName:find(winKw) then
+                        isWin = true
+                        break
+                    end
+                end
+
+                if isWin then
+                    local partToUse = nil
+                    if obj:IsA("Model") then
+                        partToUse = obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")
+                    elseif obj:IsA("BasePart") then
+                        partToUse = obj
+                    end
+
+                    if partToUse then
+                        local charRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                        local dist = charRoot and (charRoot.Position - partToUse.Position).Magnitude or 99999
+                        table.insert(candidates, {
+                            part = partToUse,
+                            fullName = fullName,
+                            dist = dist
+                        })
                     end
                 end
             end
         end
     end
-    return nil
+
+    if #candidates == 0 then return nil end
+
+    -- فلترة خاصة بالعوالم إذا تم اختيار World 1 / World 2 / World 3
+    if targetWorldNum then
+        local worldMatches = {}
+        local searchKeys = {
+            "world" .. targetWorldNum,
+            "world_" .. targetWorldNum,
+            "world " .. targetWorldNum,
+            "w" .. targetWorldNum,
+            "zone" .. targetWorldNum,
+            "zone_" .. targetWorldNum,
+            "stage" .. targetWorldNum,
+            "stage_" .. targetWorldNum,
+            "area" .. targetWorldNum
+        }
+
+        for _, cand in ipairs(candidates) do
+            for _, key in ipairs(searchKeys) do
+                if cand.fullName:find(key) then
+                    table.insert(worldMatches, cand)
+                    break
+                end
+            end
+        end
+
+        -- إذا وجد نقاط مطابقة للعالم المختار (مثلاً World 2)
+        if #worldMatches > 0 then
+            table.sort(worldMatches, function(a, b) return a.dist < b.dist end)
+            return worldMatches[1].part
+        end
+    end
+
+    -- في حال لم يجد اسماً مخصصاً للعالم، ترتيب حسب الأقرب لموقع اللاعب حالياً
+    table.sort(candidates, function(a, b) return a.dist < b.dist end)
+    return candidates[1].part
 end
 
 --======================================
--- 4. نظام المفاتيح والبريميوم
+-- 4. نظام المفاتيح والتحقق
 --======================================
-local validCodes = {
-    ["SSAD3KHUP89C-7"] = true, ["LUX892KDA1M9-1"] = true, ["ADK77X92B3Q0-2"] = true,
-    ["K92LX0M81P3A-3"] = true, ["X91M20K81L3P-4"] = true
-}
-
-local codeData = { usedCodes = {}, premiumUntil = 0 }
-if readfile and isfile and isfile(codesFileName) then
-    pcall(function()
-        local decoded = HttpService:JSONDecode(readfile(codesFileName))
-        if type(decoded) == "table" then codeData = decoded end
-    end)
-end
-
-local function isPremiumActive()
-    return (codeData.premiumUntil and os.time() < codeData.premiumUntil)
-end
-
 local function KeySystemCheck()
-    if isPremiumActive() then return true end
-    
     local keyPassed = false
     local KeyGui = Instance.new("ScreenGui", game.CoreGui)
     KeyGui.Name = "LuxKeySystem"
@@ -171,8 +216,8 @@ KeySystemCheck()
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "LUX-ADK V5.0 🚀 (Full Auto Farm)",
-    Icon = "bot",
+    Title = "LUX-ADK V6.0 🚀 (Multi-World Fix)",
+    Icon = "globe",
     Theme = "Dark",
 })
 
@@ -182,27 +227,29 @@ local PremiumTab  = Window:Tab({ Title = "VIP Premium", Icon = "crown" })
 local SettingsTab = Window:Tab({ Title = "Settings", Icon = "settings" })
 
 --======================================
--- 6. قسم الأوتو فارم التلقائي (Full Auto Farm Loop)
+-- 6. قسم الأوتو فارم المطور مع خيارات العوالم
 --======================================
 
 FarmTab:Dropdown({
-    Title = "🗺️ تحديد العالم (أو تلقائي)",
+    Title = "🗺️ اختر العالم المستهدف",
     Icon = "map-pin",
-    Values = {"Auto Detect", "World 1", "World 2", "World 3"},
-    Value = "Auto Detect",
-    Default = "Auto Detect",
+    Values = {"World 1", "World 2", "World 3", "Auto Detect"},
+    Value = "World 1",
+    Default = "World 1",
     Callback = function(opt)
         local val = type(opt) == "table" and opt[1] or opt
         Cfg.SelectedWorld = val
+        Cfg.ManualSelectedPad = nil -- إعادة ضبط عند تغيير العالم
+        notify("تغيير العالم 🌍", "تم ضبط الهدف إلى: " .. tostring(val))
     end
 })
 
 FarmTab:Dropdown({
-    Title = "⚡ سرعة الفارم التلقائي",
+    Title = "⚡ سرعة التنقل (Safe Speed)",
     Icon = "gauge",
-    Values = {"50 (آمن للغاية)", "75 (مستقر وسريع)", "100 (سريع جداً)", "150 (قد يسبب طرد)"},
-    Value = "75 (مستقر وسريع)",
-    Default = "75 (مستقر وسريع)",
+    Values = {"50 (آمن جداً)", "75 (متوازن)", "110 (سريع)", "160 (عالي)"},
+    Value = "75 (متوازن)",
+    Default = "75 (متوازن)",
     Callback = function(opt)
         local rawVal = type(opt) == "table" and opt[1] or opt
         local num = tonumber(string.match(tostring(rawVal), "%d+"))
@@ -210,14 +257,45 @@ FarmTab:Dropdown({
     end
 })
 
--- ⭐ زر الأوتو فارم الشامل والكامل
+-- ⭐ زر فحص كل منصات الفوز في السيرفر
+FarmTab:Button({
+    Title = "🔍 فحص واستخراج كل نقاط الفوز في العوالم",
+    Callback = function()
+        FoundPadsList = {}
+        local namesList = {}
+        
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") or obj:IsA("Model") then
+                local nm = obj.Name:lower()
+                for _, kw in ipairs(winKeywords) do
+                    if nm:find(kw) and not nm:find("board") and not nm:find("gui") then
+                        local p = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or obj
+                        if p then
+                            table.insert(FoundPadsList, p)
+                            table.insert(namesList, obj:GetFullName():sub(-35))
+                            break
+                        end
+                    end
+                end
+            end
+        end
+        
+        if #FoundPadsList > 0 then
+            notify("تم الفحص 🎯", "تم العثور على " .. #FoundPadsList .. " نقطة فوز في العوالم!")
+        else
+            notify("تنبيه ⚠️", "لم يتم العثور على نقاط جديدة تلقائياً.")
+        end
+    end
+})
+
+-- ⭐ زر تفعيل الأوتو فارم المطور
 FarmTab:Toggle({
-    Title = "🤖 تشغيل Auto Farm التلقائي (تجميع مستمر)",
+    Title = "🤖 تشغيل Auto Farm التلقائي",
     Value = false,
     Callback = function(v)
         Cfg.AutoFarmActive = v
         if v then
-            notify("Auto Farm 🚀", "تم تفعيل الأوتو فارم التلقائي! جاري التجميع...", 3)
+            notify("Auto Farm 🚀", "بدء التجميع لـ " .. Cfg.SelectedWorld .. "...", 3)
             task.spawn(function()
                 while Cfg.AutoFarmActive do
                     local char = player.Character
@@ -225,14 +303,13 @@ FarmTab:Toggle({
                     local hum  = char and char:FindFirstChildOfClass("Humanoid")
                     
                     if root and hum and hum.Health > 0 then
-                        local winPart = GetAutoWinPart()
+                        local winPart = ScanAndGetWinPart()
                         
                         if winPart then
                             local targetPos = winPart.Position + Vector3.new(0, 3, 0)
                             local distance  = (root.Position - targetPos).Magnitude
                             
-                            if distance > 10 then
-                                -- تفعيل Noclip أثناء الانتقال
+                            if distance > 8 then
                                 local oldNoclip = Cfg.Noclip
                                 Cfg.Noclip = true
                                 
@@ -245,24 +322,23 @@ FarmTab:Toggle({
                                 
                                 Cfg.Noclip = oldNoclip
                                 
-                                -- لمس المنصة أو الصندوق تلقائياً
+                                -- لمس المنصة
                                 pcall(function()
                                     firetouchinterest(root, winPart, 0)
                                     task.wait(0.1)
                                     firetouchinterest(root, winPart, 1)
                                 end)
                                 
-                                notify("Auto Farm 🏆", "تم الوصول لنقطة الفوز! جاري جني المكافأة...", 2)
+                                notify("Auto Farm 🏆", "تم الوصول ونيل المكافأة!", 2)
                                 task.wait(1.5)
                                 
-                                -- إعادة الرسبون التلقائية للتجميع من جديد
                                 if Cfg.AutoFarmActive and Cfg.AutoRespawn and hum then
                                     hum.Health = 0
                                     task.wait(3.5)
                                 end
                             end
                         else
-                            notify("بحث 🔍", "جارٍ البحث عن خط النهاية في الخريطة الحالية...", 2)
+                            notify("بحث 🔍", "جارٍ البحث عن منصة " .. Cfg.SelectedWorld .. "...")
                             task.wait(2)
                         end
                     end
@@ -274,13 +350,13 @@ FarmTab:Toggle({
 })
 
 FarmTab:Toggle({
-    Title = "🔄 إعادة الرسبون التلقائي بعد الفوز (Auto Reset)",
+    Title = "🔄 Auto Reset (إعادة الرسبون بعد الفوز)",
     Value = true,
     Callback = function(v) Cfg.AutoRespawn = v end
 })
 
 --======================================
--- 7. قسم الحركة والخدمات (Movement & Utilities)
+-- 7. قسم الحركة والخدمات (Movement Tab)
 --======================================
 
 local FlyBV, FlyBG, FlyConn
@@ -324,7 +400,7 @@ local function StopFly()
 end
 
 MoveTab:Toggle({
-    Title = "✈️ طيران آمن (WASD)",
+    Title = "✈️ طيران (WASD)",
     Value = false,
     Callback = function(v)
         Cfg.Fly = v
@@ -367,7 +443,7 @@ RunService.Stepped:Connect(function()
 end)
 
 --======================================
--- 8. حماية الخمول والقطع (Anti-AFK)
+-- 8. حماية الخمول وإغلاق السكربت
 --======================================
 pcall(function()
     player.Idled:Connect(function()
@@ -380,7 +456,7 @@ pcall(function()
 end)
 
 PremiumTab:Toggle({
-    Title = "🛡️ Anti-AFK (تجميع بدون انقطاع 24/7)",
+    Title = "🛡️ Anti-AFK (تجميع 24/7 دون انقطاع)",
     Value = true,
     Callback = function(v) Cfg.AntiAFK = v end
 })
@@ -391,8 +467,9 @@ SettingsTab:Button({
         Cfg.AutoFarmActive = false
         StopFly()
         Window:Destroy()
-        notify("إغلاق", "تم إيقاف الأوتو فارم وإغلاق اللوحة!")
+        notify("إغلاق", "تم إيقاف السكربت!")
     end
 })
 
-notify("LUX-ADK V5.0 Active", "تم تحميل الأوتو فارم التلقائي بنجاح!", 5)
+notify("LUX-ADK V6.0 Ready", "جاهز للاستخدام! تم حل مشكلة الانتقال لـ 1 Wins والعوالم 2 و 3.", 5)
+
