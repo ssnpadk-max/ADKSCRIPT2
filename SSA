@@ -1,0 +1,714 @@
+--[[
+📜 LUX-ADK SCRIPT V2.5 (Integrated & WindUI Edition)
+🔒 Integrated with Escape Keyboard Hub Features & Single-Use Key System
+--]]
+
+if not game:IsLoaded() then game.Loaded:Wait() end
+
+--======================================
+-- 1. الخدمات والمتغيرات الأساسية
+--======================================
+local Players           = game:GetService("Players")
+local TweenService      = game:GetService("TweenService")
+local UserInputService  = game:GetService("UserInputService")
+local HttpService       = game:GetService("HttpService")
+local StarterGui        = game:GetService("StarterGui")
+local RunService        = game:GetService("RunService")
+local VirtualUser       = game:GetService("VirtualUser")
+
+local player     = Players.LocalPlayer
+local Camera     = workspace.CurrentCamera
+local fileName   = "lux_suggestions.json"
+local codesFileName = "lux_codes_v2.json"
+
+-- دالة إشعارات عامة
+local function notify(title, text, duration)
+    pcall(function()
+        StarterGui:SetCore("SendNotification", {
+            Title = title or "LUX-ADK 🚀",
+            Text = text or "",
+            Duration = duration or 3
+        })
+    end)
+end
+
+--======================================
+-- 2. نظام البريميوم والكودات (40 كود - شخص واحد فقط)
+--======================================
+local premiumWhitelist = {
+    ["ldl_160100"] = true,
+    ["rayan_58060"] = true,
+}
+
+local validCodes = {
+    ["SSAD3KHUP89C-7"] = true,
+    ["LUX892KDA1M9-1"] = true,
+    ["ADK77X92B3Q0-2"] = true,
+    ["K92LX0M81P3A-3"] = true,
+    ["X91M20K81L3P-4"] = true,
+    ["B72V19P02M8K-5"] = true,
+    ["P81L02K91M3A-6"] = true,
+    ["Z92M10K81P3X-8"] = true,
+    ["Q81P02M91K3A-9"] = true,
+    ["M92K10P81L3V-1"] = true,
+    ["V81L02M91K3P-2"] = true,
+    ["K92P10M81L3Z-3"] = true,
+    ["L81M02K91P3Q-4"] = true,
+    ["X92K10L81M3P-5"] = true,
+    ["P81Z02M91K3L-6"] = true,
+    ["A92M10K81P3V-7"] = true,
+    ["C81P02L91M3K-8"] = true,
+    ["D92K10M81P3Z-9"] = true,
+    ["E81L02P91K3M-1"] = true,
+    ["F92M10L81P3K-2"] = true,
+    ["G81K02M91P3L-3"] = true,
+    ["H92P10K81M3V-4"] = true,
+    ["J81M02L91P3K-5"] = true,
+    ["K92Z10M81P3L-6"] = true,
+    ["L81V02K91M3P-7"] = true,
+    ["M92P10L81K3Z-8"] = true,
+    ["N81K02M91P3V-9"] = true,
+    ["P92L10K81M3Z-1"] = true,
+    ["R81M02P91K3L-2"] = true,
+    ["S92K10L81P3M-3"] = true,
+    ["T81P02M91K3V-4"] = true,
+    ["U92L10K81P3Z-5"] = true,
+    ["V81M02K91P3L-6"] = true,
+    ["W92P10L81M3K-7"] = true,
+    ["X81K02M91P3Z-8"] = true,
+    ["Y92L10P81K3M-9"] = true,
+    ["Z81M02K91P3V-1"] = true,
+    ["A91P02L81M3K-2"] = true,
+    ["B82K10M91P3Z-3"] = true,
+    ["C91L02K81M3P-4"] = true
+}
+
+local codeData = {
+    usedCodes = {},
+    premiumUntil = 0
+}
+
+if readfile and isfile and isfile(codesFileName) then
+    pcall(function()
+        local decoded = HttpService:JSONDecode(readfile(codesFileName))
+        if type(decoded) == "table" then codeData = decoded end
+    end)
+end
+
+local function saveCodeData()
+    if writefile then
+        pcall(function() writefile(codesFileName, HttpService:JSONEncode(codeData)) end)
+    end
+end
+
+local function isPremiumActive()
+    if premiumWhitelist[player.Name] then return true end
+    if codeData.premiumUntil and os.time() < codeData.premiumUntil then return true end
+    return false
+end
+
+local isPremiumUser = isPremiumActive()
+
+-- إحداثيات الفارم والعالم الثالث
+local world3Waypoints = {
+    Vector3.new(-1457, -161, -913),
+    Vector3.new(-1465, -160, -938),
+    Vector3.new(-1483, -135, -764),
+    Vector3.new(-1476, -87, -591),
+    Vector3.new(-1465, -62, -414),
+    Vector3.new(-1464, -57, -255),
+    Vector3.new(-1461, -90, -122),
+    Vector3.new(-1482, -56, -16)
+}
+
+-- إعدادات Auto Win (من السكربت الثاني)
+local winPos   = Vector3.new(-6809.3223, 531.2539, 1468.8073)
+local winSpeed = 300
+local winHeight = 900
+
+--======================================
+-- 3. نظام التحقق والمفاتيح (Key System)
+--======================================
+local function KeySystemCheck()
+    if isPremiumUser then return true end
+    
+    local keyPassed = false
+    local discordLink = "https://discord.gg/C24M9pgsWb"
+    
+    local KeyGui = Instance.new("ScreenGui")
+    KeyGui.Name = "LuxKeySystem"
+    KeyGui.Parent = game.CoreGui
+    
+    local KeyFrame = Instance.new("Frame", KeyGui)
+    KeyFrame.Size = UDim2.new(0, 320, 0, 240)
+    KeyFrame.Position = UDim2.new(0.5, -160, 0.5, -120)
+    KeyFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
+    KeyFrame.Active = true
+    KeyFrame.Draggable = true
+    Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 12)
+    
+    local Title = Instance.new("TextLabel", KeyFrame)
+    Title.Size = UDim2.new(1, 0, 0, 30)
+    Title.Position = UDim2.new(0, 0, 0, 10)
+    Title.Text = "🔑 نظام التحقق - LUX-ADK"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.Font = Enum.Font.GothamBold
+    Title.TextSize = 14
+    Title.BackgroundTransparency = 1
+    
+    local SubTitle = Instance.new("TextLabel", KeyFrame)
+    SubTitle.Size = UDim2.new(1, 0, 0, 20)
+    SubTitle.Position = UDim2.new(0, 0, 0, 38)
+    SubTitle.Text = "المفتاح تجدونه بسيرفر الديسكورد 👇"
+    SubTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
+    SubTitle.Font = Enum.Font.GothamMedium
+    SubTitle.TextSize = 11
+    SubTitle.BackgroundTransparency = 1
+    
+    local DiscordBtn = Instance.new("TextButton", KeyFrame)
+    DiscordBtn.Size = UDim2.new(0.85, 0, 0, 30)
+    DiscordBtn.Position = UDim2.new(0.075, 0, 0, 65)
+    DiscordBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
+    DiscordBtn.Text = discordLink
+    DiscordBtn.TextColor3 = Color3.fromRGB(88, 101, 242)
+    DiscordBtn.Font = Enum.Font.GothamBold
+    DiscordBtn.TextSize = 10
+    Instance.new("UICorner", DiscordBtn).CornerRadius = UDim.new(0, 6)
+    
+    DiscordBtn.MouseButton1Click:Connect(function()
+        if setclipboard then setclipboard(discordLink)
+        elseif toclipboard then toclipboard(discordLink) end
+        DiscordBtn.Text = "تم نسخ الرابط بنجاح! ✓"
+        task.wait(2)
+        DiscordBtn.Text = discordLink
+    end)
+    
+    local KeyInput = Instance.new("TextBox", KeyFrame)
+    KeyInput.Size = UDim2.new(0.85, 0, 0, 32)
+    KeyInput.Position = UDim2.new(0.075, 0, 0, 115)
+    KeyInput.PlaceholderText = "أدخل المفتاح هنا..."
+    KeyInput.TextColor3 = Color3.new(1, 1, 1)
+    KeyInput.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
+    KeyInput.Font = Enum.Font.GothamMedium
+    KeyInput.TextSize = 12
+    KeyInput.Text = ""
+    Instance.new("UICorner", KeyInput).CornerRadius = UDim.new(0, 6)
+    
+    local CheckBtn = Instance.new("TextButton", KeyFrame)
+    CheckBtn.Size = UDim2.new(0.85, 0, 0, 32)
+    CheckBtn.Position = UDim2.new(0.075, 0, 0, 160)
+    CheckBtn.Text = "تفعيل اللوحة"
+    CheckBtn.TextColor3 = Color3.new(1, 1, 1)
+    CheckBtn.Font = Enum.Font.GothamBold
+    CheckBtn.TextSize = 12
+    CheckBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+    Instance.new("UICorner", CheckBtn).CornerRadius = UDim.new(0, 6)
+    
+    CheckBtn.MouseButton1Click:Connect(function()
+        if KeyInput.Text == "dogsken1" or KeyInput.Text == "DOGSKEN1" then
+            keyPassed = true
+            KeyGui:Destroy()
+        else
+            CheckBtn.Text = "❌ مفتاح خاطئ!"
+            CheckBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+            task.wait(1.5)
+            CheckBtn.Text = "تفعيل اللوحة"
+            CheckBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+        end
+    end)
+    
+    repeat task.wait(0.1) until keyPassed
+    return true
+end
+
+KeySystemCheck()
+
+--======================================
+-- 4. تحميل واجهة WindUI
+--======================================
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+
+local Window = WindUI:CreateWindow({
+    Title = "LUX-ADK V2.5 🚀 (Integrated)",
+    Icon = "star",
+    Theme = "Dark",
+})
+
+-- إنشاء التبويبات (Tabs)
+local FarmTab    = Window:Tab({ Title = "Auto Farm & Win", Icon = "zap" })
+local PremiumTab = Window:Tab({ Title = "VIP Premium", Icon = "crown" })
+local CodesTab   = Window:Tab({ Title = "Codes", Icon = "key" })
+local NewsTab    = Window:Tab({ Title = "News", Icon = "newspaper" })
+local SuggestTab = Window:Tab({ Title = "Suggest", Icon = "message-square" })
+
+--======================================
+-- 5. قسم الفارم والأوتو وين المدمج (Farm & Win Tab)
+--======================================
+
+-- [خاصية جديدة 1]: Auto Win (Smooth Travel) المدمجة من السكربت الثاني
+local autoWinEnabled = false
+FarmTab:Toggle({
+    Title = "🏆 Auto Win (Smooth Travel)",
+    Value = false,
+    Callback = function(state)
+        autoWinEnabled = state
+        if state then
+            task.spawn(function()
+                while autoWinEnabled do
+                    local char = player.Character
+                    local root = char and char:FindFirstChild("HumanoidRootPart")
+                    
+                    if root and winPos then
+                        local dist = (root.Position - winPos).Magnitude
+
+                        if dist > 5 then
+                            -- 1. الارتفاع للأعلى
+                            notify("Auto Win 🏆", "جارٍ الارتفاع للأعلى...", 2)
+                            local riseStart = root.CFrame
+                            local riseEnd = riseStart * CFrame.new(0, winHeight, 0)
+
+                            for i = 0, 1, 0.05 do
+                                if not autoWinEnabled or not root.Parent then break end
+                                root.CFrame = riseStart:Lerp(riseEnd, i)
+                                task.wait(0.02)
+                            end
+
+                            if not autoWinEnabled or not root.Parent then return end
+                            task.wait(0.2)
+
+                            -- 2. الانتقال الأفقي للموقع
+                            notify("Auto Win 🏆", "جارٍ الانتقال لخط النهاية...", 2)
+                            local startCF = root.CFrame
+                            local targetPos = Vector3.new(winPos.X, root.Position.Y, winPos.Z)
+                            local targetCF = CFrame.new(targetPos, Vector3.new(targetPos.X, targetPos.Y, targetPos.Z + 1))
+
+                            local distance = (root.Position - targetPos).Magnitude
+                            local steps = math.floor(distance / (winSpeed / 30))
+
+                            for i = 1, steps do
+                                if not autoWinEnabled or not root.Parent then break end
+                                root.CFrame = startCF:Lerp(targetCF, i/steps)
+                                task.wait(0.03)
+                            end
+
+                            if not autoWinEnabled or not root.Parent then return end
+                            task.wait(0.2)
+
+                            -- 3. الهبوط إلى النقطة النهائية
+                            notify("Auto Win 🏆", "جارٍ الهبوط والمطالبة بالفوز...", 2)
+                            local currentCF = root.CFrame
+                            local finalCF = CFrame.new(winPos)
+
+                            for i = 0, 1, 0.01 do
+                                if not autoWinEnabled or not root.Parent then break end
+                                root.CFrame = currentCF:Lerp(finalCF, i)
+                                task.wait(0.01)
+                            end
+
+                            if root.Parent then root.CFrame = finalCF end
+
+                            notify("Auto Win 🏆", "تم الوصول! إعادة التجميع خلال 3 ثوانٍ...", 3)
+                            task.wait(3)
+
+                            -- إعادة الرسبون لتكرار العملية
+                            local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+                            if hum then hum.Health = 0 end
+
+                            notify("Auto Win 🏆", "جارٍ إعادة الرسبون... الدورة القادمة بعد 5 ثوانٍ", 5)
+                            task.wait(5)
+                        end
+                    end
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end
+})
+
+-- [خاصية جديدة 2]: Auto Walk (المحاكاة ذكية)
+local autoWalkSim = false
+FarmTab:Toggle({
+    Title = "🏃 Auto Walk (محاكاة المشي الذكية)",
+    Value = false,
+    Callback = function(state)
+        autoWalkSim = state
+        if state then
+            task.spawn(function()
+                while autoWalkSim do
+                    local char = player.Character
+                    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+                    if hum then
+                        hum:Move(Vector3.new(0, 0, 1), true)
+                        task.wait(0.1)
+                        hum:Move(Vector3.new(0, 0, -1), true)
+                    end
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end
+})
+
+-- الفارم الخاص بالعالم الثالث
+local farmEnabled = false
+local function startWorld3Farm()
+    while farmEnabled do
+        local character = player.Character
+        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+        if rootPart then
+            for _, targetPos in ipairs(world3Waypoints) do
+                if not farmEnabled then break end
+                local distance = (rootPart.Position - targetPos).Magnitude
+                local tweenInfo = TweenInfo.new(distance / 220, Enum.EasingStyle.Linear)
+                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(targetPos)})
+                tween:Play()
+                tween.Completed:Wait()
+            end
+            if farmEnabled then
+                task.wait(0.8)
+                repeat task.wait(0.1) until not farmEnabled or (rootPart.Position.Z < -800)
+            end
+        else task.wait(0.5) end
+        task.wait(0.1)
+    end
+end
+
+FarmTab:Toggle({
+    Title = "⚡ Auto Tween - World 3",
+    Value = false,
+    Callback = function(state)
+        farmEnabled = state
+        if state then task.spawn(startWorld3Farm) end
+    end
+})
+
+-- منع الطرد Anti-AFK
+local antiAfkConnection = nil
+FarmTab:Toggle({
+    Title = "🛑 Anti AFK (منع الطرد)",
+    Value = false,
+    Callback = function(state)
+        if state then
+            antiAfkConnection = player.Idled:Connect(function()
+                VirtualUser:Button2Down(Vector2.new(0,0), Camera.CFrame) task.wait(0.5)
+                VirtualUser:Button2Up(Vector2.new(0,0), Camera.CFrame)
+            end)
+        else
+            if antiAfkConnection then antiAfkConnection:Disconnect(); antiAfkConnection = nil end
+        end
+    end
+})
+
+-- نمط الطيران (Fly Mode)
+local flightSpeed = 2
+local flying, bv, bg = false, nil, nil
+FarmTab:Toggle({
+    Title = "✈️ Toggle Fly Mode",
+    Value = false,
+    Callback = function(state)
+        flying = state
+        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if flying and hrp then
+            if not bv then bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(9e9, 9e9, 9e9) end
+            if not bg then bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9) end
+            task.spawn(function()
+                while flying and hrp.Parent do
+                    bv.Velocity = Camera.CFrame.LookVector * (flightSpeed * 25)
+                    bg.CFrame = Camera.CFrame
+                    task.wait()
+                end
+            end)
+        else
+            if bv then bv:Destroy(); bv = nil end
+            if bg then bg:Destroy(); bg = nil end
+        end
+    end
+})
+
+-- وضع الخلود الأساسي (God Mode Basic)
+local gmBasicConn, basicDangers = nil, {"kill", "lava", "laser", "spike"}
+local function clearBasicDanger(obj)
+    if obj:IsA("BasePart") then
+        local name = obj.Name:lower()
+        for _, kw in ipairs(basicDangers) do
+            if name:find(kw) then pcall(function() obj:Destroy() end) break end
+        end
+    end
+end
+
+FarmTab:Toggle({
+    Title = "🛡️ God Mode (Basic)",
+    Value = false,
+    Callback = function(state)
+        if state then
+            for _, obj in pairs(workspace:GetDescendants()) do clearBasicDanger(obj) end
+            gmBasicConn = workspace.DescendantAdded:Connect(clearBasicDanger)
+        else
+            if gmBasicConn then gmBasicConn:Disconnect() end
+        end
+    end
+})
+
+-- عناصر السرعة والقفز Dropdowns
+local customWalkSpeed = 16
+local customJumpPower = 50
+
+FarmTab:Dropdown({
+    Title = "Flight Speed",
+    Icon = "zap",
+    Values = {"1 s", "2 s", "3 s", "4 s", "5 s", "6 s", "7 s", "8 s", "9 s", "10 s"},
+    Value = "2 s",
+    Default = "2 s",
+    Callback = function(option)
+        local rawVal = type(option) == "table" and option[1] or option
+        local num = tonumber(string.match(tostring(rawVal), "%d+"))
+        if num then flightSpeed = num end
+    end
+})
+
+FarmTab:Dropdown({
+    Title = "Walk Speed",
+    Icon = "zap",
+    Values = {"16", "30", "50", "80", "100", "150", "200", "250", "300", "320"},
+    Value = "16",
+    Default = "16",
+    Callback = function(option)
+        local rawVal = type(option) == "table" and option[1] or option
+        local num = tonumber(string.match(tostring(rawVal), "%d+"))
+        if num then customWalkSpeed = num end
+    end
+})
+
+FarmTab:Dropdown({
+    Title = "Jump Power",
+    Icon = "zap",
+    Values = {"50", "70", "100", "130", "160", "200", "250", "300", "320"},
+    Value = "50",
+    Default = "50",
+    Callback = function(option)
+        local rawVal = type(option) == "table" and option[1] or option
+        local num = tonumber(string.match(tostring(rawVal), "%d+"))
+        if num then customJumpPower = num end
+    end
+})
+
+RunService.Stepped:Connect(function()
+    local char = player.Character
+    if char then
+        local hum = char:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Health > 0 then
+            hum.WalkSpeed = customWalkSpeed
+            hum.UseJumpPower = true
+            hum.JumpPower = customJumpPower
+        end
+    end
+end)
+
+--======================================
+-- 6. قسم البريميوم (VIP Premium)
+--======================================
+local gmAdvConn, advDangers = nil, {"tsunami", "wave", "water", "flood", "acid", "trap", "brick", "ball", "enemy", "zombie", "dummy", "npc", "killer", "hurt", "disaster"}
+local function clearAdvDanger(obj)
+    if obj:IsA("BasePart") or obj:IsA("Model") then
+        local name = obj.Name:lower()
+        for _, kw in ipairs(advDangers) do
+            if name:find(kw) then pcall(function() obj:Destroy() end) break end
+        end
+    end
+end
+
+PremiumTab:Toggle({
+    Title = "⭐ God Mode II (Anti-Tsunami)",
+    Value = false,
+    Callback = function(state)
+        if not isPremiumUser then
+            notify("VIP Premium 🌟", "هذه الميزة مقفلة للبريميوم فقط!")
+            return
+        end
+        if state then
+            for _, obj in pairs(workspace:GetDescendants()) do clearAdvDanger(obj) end
+            gmAdvConn = workspace.DescendantAdded:Connect(clearAdvDanger)
+        else
+            if gmAdvConn then gmAdvConn:Disconnect() end
+        end
+    end
+})
+
+local airPart = Instance.new("Part")
+airPart.Size = Vector3.new(7, 1, 7)
+airPart.Transparency = 0.5
+airPart.Color = Color3.fromRGB(0, 255, 255)
+airPart.Material = Enum.Material.Neon
+airPart.Anchored = true
+airPart.CanCollide = true
+
+local airWalkConn = nil
+PremiumTab:Toggle({
+    Title = "⭐ Air Walk (مشي في الهواء)",
+    Value = false,
+    Callback = function(state)
+        if not isPremiumUser then
+            notify("VIP Premium 🌟", "هذه الميزة مقفلة للبريميوم فقط!")
+            return
+        end
+        if state then
+            airPart.Parent = workspace
+            airWalkConn = RunService.RenderStepped:Connect(function()
+                local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+                if hrp then airPart.CFrame = hrp.CFrame * CFrame.new(0, -3.5, 0) end
+            end)
+        else
+            if airWalkConn then airWalkConn:Disconnect() end
+            airPart.Parent = nil
+        end
+    end
+})
+
+local infiniteJumpActive = false
+PremiumTab:Toggle({
+    Title = "⭐ Infinite Jump (قفز لانهائي)",
+    Value = false,
+    Callback = function(state)
+        if not isPremiumUser then
+            notify("VIP Premium 🌟", "هذه الميزة مقفلة للبريميوم فقط!")
+            return
+        end
+        infiniteJumpActive = state
+    end
+})
+
+UserInputService.JumpRequest:Connect(function()
+    if infiniteJumpActive and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+        player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
+    end
+end)
+
+local noclipActive = false
+PremiumTab:Toggle({
+    Title = "⭐ Noclip (اختراق الجدران)",
+    Value = false,
+    Callback = function(state)
+        if not isPremiumUser then
+            notify("VIP Premium 🌟", "هذه الميزة مقفلة للبريميوم فقط!")
+            return
+        end
+        noclipActive = state
+    end
+})
+
+RunService.Stepped:Connect(function()
+    if noclipActive and player.Character then
+        for _, part in pairs(player.Character:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end
+        end
+    end
+end)
+
+PremiumTab:Button({
+    Title = "🗑️ Delete Diamonds & Lag Junk",
+    Callback = function()
+        local count = 0
+        local junkNames = {"diamond", "gem", "crystal", "coin", "lag", "mesh", "effect"}
+        for _, obj in pairs(workspace:GetDescendants()) do
+            if obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("Decal") or obj:IsA("Texture") then
+                local name = obj.Name:lower()
+                for _, kw in ipairs(junkNames) do
+                    if name:find(kw) then pcall(function() obj:Destroy() count = count + 1 end) break end
+                end
+            end
+        end
+        notify("Anti-Lag", "تم تنظيف " .. count .. " من جزيئات اللاق!")
+    end
+})
+
+--======================================
+-- 7. قسم الكودات (Codes Tab - Single Use Locked)
+--======================================
+local inputCodeText = ""
+CodesTab:Input({
+    Title = "أدخل كود البريميوم",
+    Placeholder = "أدخل الكود هنا...",
+    Callback = function(txt)
+        inputCodeText = txt
+    end
+})
+
+CodesTab:Button({
+    Title = "تفعيل الكود 🎁",
+    Callback = function()
+        local inputCode = string.upper(string.gsub(inputCodeText, "%s+", ""))
+        if inputCode == "" then
+            notify("تنبيه", "⚠️ يرجى كتابة الكود أولاً!")
+            return
+        end
+
+        if not validCodes[inputCode] then
+            notify("خطأ", "❌ الكود غير صحيح!")
+            return
+        end
+
+        if codeData.usedCodes[inputCode] then
+            notify("خطأ", "❌ هذا الكود تم استخدامه سابقاً ولا يمكن استخدامه مجدداً!")
+            return
+        end
+
+        codeData.usedCodes[inputCode] = player.Name
+        local currentTime = os.time()
+        local currentExpiry = (codeData.premiumUntil and codeData.premiumUntil > currentTime) and codeData.premiumUntil or currentTime
+        codeData.premiumUntil = currentExpiry + (7 * 24 * 60 * 60)
+        saveCodeData()
+
+        isPremiumUser = true
+        notify("مبروك! 🌟", "🎉 تم تفعيل البريميوم لمدة 7 أيام بنجاح!", 5)
+    end
+})
+
+--======================================
+-- 8. قسم الأخبار (News Tab)
+--======================================
+local newsList = {
+    "🚀 تم إطلاق التحديث المدمج V2.5!",
+    "🏆 إضافة ميزة Auto Win (Smooth Travel) التلقائية.",
+    "🏃 إضافة ميزة Auto Walk لمحاكاة المشي ومنع الطرد.",
+    "🎁 تم تحديث نظام الأكواد الـ 40 لتصبح للاستخدام الفردي فقط.",
+    "⚡ تحسين وتطوير أداء التنقل والاستجابة."
+}
+
+for _, newsText in ipairs(newsList) do
+    NewsTab:Button({
+        Title = newsText,
+        Callback = function() end
+    })
+end
+
+--======================================
+-- 9. قسم الاقتراحات (Suggest Tab)
+--======================================
+local suggestText = ""
+SuggestTab:Input({
+    Title = "اكتب اقتراحك",
+    Placeholder = "اكتب اقتراحك هنا...",
+    Callback = function(txt)
+        suggestText = txt
+    end
+})
+
+SuggestTab:Button({
+    Title = "إرسال وحفظ الاقتراح 💬",
+    Callback = function()
+        if suggestText ~= "" then
+            local activeSuggestions = {}
+            if readfile and isfile and isfile(fileName) then
+                pcall(function() activeSuggestions = HttpService:JSONDecode(readfile(fileName)) end)
+            end
+            table.insert(activeSuggestions, {name = player.Name, text = suggestText})
+            if writefile then
+                pcall(function() writefile(fileName, HttpService:JSONEncode(activeSuggestions)) end)
+            end
+            notify("تم الإرسال", "تم حفظ اقتراحك بنجاح! ✓")
+        end
+    end
+})
+
+notify("LUX-ADK V2.5 Loaded", "تم تحميل السكربت المدمج بنجاح!", 5)
+
