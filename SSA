@@ -1,13 +1,13 @@
 --[[
-📜 LUX-ADK SCRIPT V7.0 (Sequential Stage Walker Edition)
-🎯 Step-by-Step Stage Progression for World 1 (150k), World 2 (200m) & World 3 (3.5b)
-🛡️ Anti-Kick Bypass & WindUI Integrated
+📜 LUX-ADK SCRIPT V8.0 (Waypoint & Safe Glide Master Edition)
+🎯 Precise Coordinates Auto-Farm | World 1, 2, 3 Supported | No Death Bug
+🛡️ Anti-Kick & Hazard Bypass | WindUI Integrated
 --]]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 --======================================
--- 1. حماية وتجاوز نظام الطرد (Anti-Kick Hook)
+-- 1. حماية وتجاوز نظام الطرد (Anti-Kick)
 --======================================
 pcall(function()
     local oldNamecall
@@ -27,21 +27,20 @@ end)
 local Players           = game:GetService("Players")
 local TweenService      = game:GetService("TweenService")
 local UserInputService  = game:GetService("UserInputService")
-local HttpService       = game:GetService("HttpService")
 local StarterGui        = game:GetService("StarterGui")
 local RunService        = game:GetService("RunService")
 local VirtualUser       = game:GetService("VirtualUser")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player     = Players.LocalPlayer
 local Camera     = workspace.CurrentCamera
-local codesFileName = "lux_codes_v2.json"
 
 -- إعدادات السكربت
 local Cfg = {
     AutoFarmActive  = false,
-    SelectedWorld   = "World 1", -- "World 1", "World 2", "World 3"
-    StepDelay       = 0.08,      -- التأخير بين مرحلة وأخرى (بالثواني) لضمان احتساب اللعبة
-    AutoRespawn     = true,
+    SelectedWorld   = "World 3",
+    SelectedTarget  = "فارم 3.5b كأس",
+    GlideSpeed      = 175,
     
     Fly             = false,
     FlySpeed        = 90,
@@ -50,6 +49,12 @@ local Cfg = {
     
     AntiAFK         = true
 }
+
+local HoverBV = nil
+local CurrentTween = nil
+local HeartbeatConn = nil
+local CharAddedConn = nil
+local IsRespawning = false
 
 local function notify(title, text, duration)
     pcall(function()
@@ -62,80 +67,291 @@ local function notify(title, text, duration)
 end
 
 --======================================
--- 3. محرك تجميع وترتيب مراحل العالم بالترتيب (Sequential Stage Collector)
+-- 3. قوائم الإحداثيات الدقيقة (Waypoints Data)
 --======================================
-local function GetOrderedStagesForSelectedWorld()
-    local targetWorldNum = tonumber(string.match(Cfg.SelectedWorld, "%d+")) or 1
-    local stages = {}
-    
-    -- الكلمات الدالة على العالم المختار
-    local worldKeys = {
-        "world" .. targetWorldNum, "world_" .. targetWorldNum, "world " .. targetWorldNum,
-        "w" .. targetWorldNum, "zone" .. targetWorldNum, "stage" .. targetWorldNum, "area" .. targetWorldNum
+local WaypointsData = {
+    W3_Part1 = {
+        Vector3.new(-1454.39, -160.97, -876.17), Vector3.new(-1439.86, -160.82, -860.33), Vector3.new(-1424.53, -160.53, -843.19),
+        Vector3.new(-1424.17, -154.42, -823.95), Vector3.new(-1424.37, -128.07, -739.66), Vector3.new(-1424.5, -121.91, -720.57),
+        Vector3.new(-1424.73, -95.16, -634.99), Vector3.new(-1423.84, -88.98, -616.18), Vector3.new(-1428.87, -69.83, -536.99),
+        Vector3.new(-1452.07, -69.83, -504.28), Vector3.new(-1452.91, -59.35, -396.55), Vector3.new(-1453.87, -57.33, -345.1),
+        Vector3.new(-1452.3, -57.33, -265.7), Vector3.new(-1451.12, -46.44, -230.38), Vector3.new(-1454.06, -57.33, -206.36),
+        Vector3.new(-1452.9, -57.33, -184.71), Vector3.new(-1454.97, -38.43, -157.63), Vector3.new(-1450.32, -57.33, -125.26),
+        Vector3.new(-1451.87, -57.59, 2.88), Vector3.new(-1451.39, -57.59, 7.25), Vector3.new(-1452.22, -57.36, 83.86),
+        Vector3.new(-1433.55, 211.3, 96.34), Vector3.new(-1433.46, 214.67, 100.28), Vector3.new(-1449.27, 221.58, 173.62),
+        Vector3.new(-1447.87, 221.97, 233.63), Vector3.new(-1452.83, 214.42, 353.5), Vector3.new(-1453.65, 214.42, 463.96),
+        Vector3.new(-1451.56, 214.42, 524.72), Vector3.new(-1454.88, 214.42, 626.67), Vector3.new(-1454.85, 366.9, 627.38),
+        Vector3.new(-1456.42, 360.42, 610.58), Vector3.new(-1455.16, 360.42, 580.7), Vector3.new(-1454.82, 359.62, 501.57),
+        Vector3.new(-1347.59, 360.13, 499.04), Vector3.new(-1250.18, 332, 500.25), Vector3.new(-1240.8, 313.57, 562.35),
+        Vector3.new(-1236.69, 323.21, 600.94), Vector3.new(-1232.07, 328.26, 640.16), Vector3.new(-1247.14, 328.26, 680.45),
+        Vector3.new(-1222.75, 331.07, 721.78), Vector3.new(-1221.72, 345.62, 835.93), Vector3.new(-1249.02, 348.65, 838.7),
+        Vector3.new(-1364.55, 363.48, 840.13), Vector3.new(-1397.37, 358.54, 834.7), Vector3.new(-1400.71, 373.4, 780.84),
+        Vector3.new(-1400.73, 532.43, 780.84), Vector3.new(-1403.75, 532.43, 780.84)
+    },
+    W3_Part2 = {
+        Vector3.new(-1403.8, 532.43, 780.84), Vector3.new(-1405, 532.43, 1329.29), Vector3.new(-1430.49, 542.94, 1329.7)
+    },
+    W3_Part3 = {
+        Vector3.new(-1402.78, 532.43, 1419.2), Vector3.new(-1467.71, 508.33, 1482.43), Vector3.new(-1553.14, 509.84, 1516.26),
+        Vector3.new(-1750.84, 506.93, 1486.8), Vector3.new(-2012.77, 509.01, 1487.69), Vector3.new(-2062.84, 505.46, 1458.08)
+    },
+    W3_Part4 = {
+        Vector3.new(-2094.08, 442.43, 1487.21), Vector3.new(-2167, 450.44, 1484.64), Vector3.new(-2265.28, 438.43, 1484.21),
+        Vector3.new(-2346.08, 447.43, 1485.74), Vector3.new(-2397.86, 442.84, 1488.9), Vector3.new(-2453.24, 438.43, 1490.84),
+        Vector3.new(-2546.82, 464.03, 1488.35), Vector3.new(-2656.65, 442.43, 1490.44), Vector3.new(-2716.67, 447.18, 1492.02),
+        Vector3.new(-2825.21, 442.43, 1487.58), Vector3.new(-2860.51, 451.96, 1489.4), Vector3.new(-2903.3, 518.94, 1486.27),
+        Vector3.new(-2929.7, 527.68, 1485.72), Vector3.new(-2977.67, 594.94, 1487.71), Vector3.new(-3001.65, 603.11, 1487.89),
+        Vector3.new(-2999.5, 602.9, 1488.01), Vector3.new(-3055.42, 671.94, 1483.29), Vector3.new(-3216.06, 671.94, 1487.41),
+        Vector3.new(-3215.93, 682.43, 1461.07)
+    },
+    W2_250k = {
+        Vector3.new(-397.84, 504.71, -131.21), Vector3.new(-394.92, 503.8, -10.85), Vector3.new(-393.06, 523.84, 27.91),
+        Vector3.new(-399.25, 503.8, 53.12), Vector3.new(-400.24, 503.8, 72.68), Vector3.new(-404.94, 503.8, 114.44),
+        Vector3.new(-402.59, 503.8, 138.4), Vector3.new(-396.64, 499.88, 190.98)
+    },
+    W2_400k = {
+        Vector3.new(-397.84, 504.71, -131.21), Vector3.new(-394.92, 503.8, -10.85), Vector3.new(-393.06, 523.84, 27.91),
+        Vector3.new(-399.25, 503.8, 53.12), Vector3.new(-400.24, 503.8, 72.68), Vector3.new(-404.94, 503.8, 114.44),
+        Vector3.new(-402.59, 503.8, 138.4), Vector3.new(-396.64, 499.88, 190.98), Vector3.new(-397.42, 499.88, 213.08),
+        Vector3.new(-395.61, 499.88, 432.24)
+    },
+    W2_600k = {
+        Vector3.new(-397.84, 504.71, -131.21), Vector3.new(-394.92, 503.8, -10.85), Vector3.new(-393.06, 523.84, 27.91),
+        Vector3.new(-399.25, 503.8, 53.12), Vector3.new(-400.24, 503.8, 72.68), Vector3.new(-404.94, 503.8, 114.44),
+        Vector3.new(-402.59, 503.8, 138.4), Vector3.new(-396.64, 499.88, 190.98), Vector3.new(-397.42, 499.88, 213.08),
+        Vector3.new(-395.61, 499.88, 432.24), Vector3.new(-394.93, 499.74, 465.64), Vector3.new(-346.74, 499.74, 466.33),
+        Vector3.new(-345.87, 500.4, 481.19), Vector3.new(-345.12, 526.42, 563.66), Vector3.new(-345.52, 526.81, 576.3),
+        Vector3.new(-455.49, 526.81, 575.76), Vector3.new(-455.35, 526.8, 565.5), Vector3.new(-454.15, 553.1, 481.4),
+        Vector3.new(-454.96, 553.81, 466.3), Vector3.new(-346.87, 553.81, 469.53), Vector3.new(-346.71, 553.81, 478.08),
+        Vector3.new(-347.88, 580.55, 563.87), Vector3.new(-345.8, 580.88, 577.93), Vector3.new(-450.21, 580.88, 575.6),
+        Vector3.new(-450.61, 580.88, 565.39), Vector3.new(-450.01, 607.86, 479.09), Vector3.new(-425.92, 607.88, 464.11),
+        Vector3.new(-397.9, 607.88, 485.45), Vector3.new(-397.63, 607.67, 607.23)
     }
-    
-    local blacklist = {"leaderboard", "board", "display", "gui", "ui", "stat", "top", "rank", "podium", "shop"}
-    local stageKeywords = {"stage", "door", "gate", "wall", "zone", "win", "pad", "chest", "checkpoint", "part"}
+}
 
-    for _, obj in pairs(workspace:GetDescendants()) do
-        if (obj:IsA("BasePart") or obj:IsA("Model")) and not obj:IsDescendantOf(player.Character or game) then
-            local fullName = obj:GetFullName():lower()
-            local name     = obj.Name:lower()
+--======================================
+-- 4. المحركات المساعدة (Core Logic Functions)
+--======================================
 
-            -- التأكد من عدم وجود كلمات الحظر
-            local isBlacklisted = false
-            for _, bad in ipairs(blacklist) do
-                if fullName:find(bad) then isBlacklisted = true; break end
-            end
-
-            if not isBlacklisted then
-                -- فحص انتماء المجسم للعالم المحدد
-                local isCurrentWorld = false
-                for _, wKey in ipairs(worldKeys) do
-                    if fullName:find(wKey) then isCurrentWorld = true; break end
-                end
-
-                -- إذا لم تكن العوالم مفصولة بمجلدات، نجمع كل الأبواب والمراحل
-                if isCurrentWorld or targetWorldNum == 1 then
-                    for _, kw in ipairs(stageKeywords) do
-                        if name:find(kw) then
-                            local partToUse = obj:IsA("Model") and (obj.PrimaryPart or obj:FindFirstChildWhichIsA("BasePart")) or (obj:IsA("BasePart") and obj)
-                            if partToUse then
-                                table.insert(stages, partToUse)
-                                break
-                            end
-                        end
+-- تنظيف الأجزاء القاتلة والمخاطر
+local function CleanHazards()
+    pcall(function()
+        for _, name in ipairs({"Lava_Stage3", "NPC_Zone5", "MovingWalls"}) do
+            for _, v in ipairs(workspace:GetDescendants()) do
+                if v:IsA("Model") and v.Name == name then
+                    v:Destroy()
+                elseif v:IsA("BasePart") then
+                    local nm = v.Name:lower()
+                    if nm:find("kill") or nm:find("lava") or nm:find("acid") or nm:find("death") or nm:find("hazard") then
+                        v.CanTouch = false
                     end
                 end
             end
         end
-    end
+    end)
+end
 
-    -- ترتيب المراحل حسب المسافة من نقطة البداية إلى النهاية (ترتيب متسلسل)
+-- التحكم في طيران وقوف الشخصية (Hover Velocity)
+local function SetHoverVelocity(active)
     local char = player.Character
     local root = char and char:FindFirstChild("HumanoidRootPart")
-    
-    if root and #stages > 0 then
-        local startPos = root.Position
-        table.sort(stages, function(a, b)
-            -- إذا كانت الأسماء تحتوي على أرقام (Stage 1, Stage 2...) يرتبها برقم المرحلة
-            local numA = tonumber(string.match(a.Name, "%d+")) or tonumber(string.match(a.Parent.Name, "%d+"))
-            local numB = tonumber(string.match(b.Name, "%d+")) or tonumber(string.match(b.Parent.Name, "%d+"))
-            
-            if numA and numB and numA ~= numB then
-                return numA < numB
-            else
-                -- وإلا يرتبها حسب المسافة التسلسلية
-                return (a.Position - startPos).Magnitude < (b.Position - startPos).Magnitude
-            end
-        end)
+    if active then
+        if root and (not HoverBV or not HoverBV.Parent) then
+            HoverBV = Instance.new("BodyVelocity")
+            HoverBV.Velocity = Vector3.new(0, 0, 0)
+            HoverBV.MaxForce = Vector3.new(0, math.huge, 0)
+            HoverBV.Parent = root
+        end
+    else
+        if HoverBV then
+            HoverBV:Destroy()
+            HoverBV = nil
+        end
     end
+end
 
-    return stages
+-- إلغاء الـ Tween الحالي
+local function CancelTween()
+    if CurrentTween then
+        CurrentTween:Cancel()
+        CurrentTween = nil
+    end
+end
+
+-- بناء مسار النقاط حسب الخيار المحدد
+local function BuildFarmPath()
+    local path = {}
+    if Cfg.SelectedWorld == "World 3" then
+        if Cfg.SelectedTarget == "فارم 5.5b كأس" then
+            for _, v in ipairs(WaypointsData.W3_Part1) do table.insert(path, v) end
+            for i, v in ipairs(WaypointsData.W3_Part2) do if i ~= 3 then table.insert(path, v) end end
+            for _, v in ipairs(WaypointsData.W3_Part3) do table.insert(path, v) end
+            for _, v in ipairs(WaypointsData.W3_Part4) do table.insert(path, v) end
+        elseif Cfg.SelectedTarget == "فارم 3.5b كأس" then
+            for _, v in ipairs(WaypointsData.W3_Part1) do table.insert(path, v) end
+            for i, v in ipairs(WaypointsData.W3_Part2) do if i ~= 3 then table.insert(path, v) end end
+            for _, v in ipairs(WaypointsData.W3_Part3) do table.insert(path, v) end
+        elseif Cfg.SelectedTarget == "فارم 2b كأس" then
+            for _, v in ipairs(WaypointsData.W3_Part1) do table.insert(path, v) end
+            for _, v in ipairs(WaypointsData.W3_Part2) do table.insert(path, v) end
+        else -- فارم 1.2b كأس
+            for _, v in ipairs(WaypointsData.W3_Part1) do table.insert(path, v) end
+        end
+    elseif Cfg.SelectedWorld == "World 2" then
+        if Cfg.SelectedTarget == "فارم 600k كأس" then
+            path = WaypointsData.W2_600k
+        elseif Cfg.SelectedTarget == "فارم 400k كأس" then
+            path = WaypointsData.W2_400k
+        else
+            path = WaypointsData.W2_250k
+        end
+    end
+    return path
+end
+
+-- الانزلاق نحو نقطة معينة (Waypoint Tween)
+local function TweenToPosition(targetPos)
+    if IsRespawning then return false end
+    
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+    
+    if not root or not hum then
+        IsRespawning = true
+        return false
+    end
+    
+    local dist = (targetPos - root.Position).Magnitude
+    local timeToTravel = dist / Cfg.GlideSpeed
+    
+    hum:ChangeState(Enum.HumanoidStateType.Running)
+    SetHoverVelocity(true)
+    root.Anchored = false
+    
+    if timeToTravel < 0.05 then
+        root.CFrame = CFrame.new(targetPos)
+        return true
+    end
+    
+    local twInfo = TweenInfo.new(timeToTravel, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+    CurrentTween = TweenService:Create(root, twInfo, {CFrame = CFrame.new(targetPos)})
+    CurrentTween:Play()
+    CurrentTween.Completed:Wait()
+    
+    return true
+end
+
+-- الانزلاق نحو بلوك الفوز المباشر (WinBlock)
+local function TweenToWinBlock(blockName, fallbackPos)
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    if not root then return end
+    
+    local targetPos = fallbackPos
+    local foundPart = workspace:FindFirstChild(blockName, true)
+    if foundPart then
+        targetPos = foundPart:IsA("BasePart") and foundPart.Position or foundPart:GetPivot().Position
+    end
+    
+    local dist = (targetPos - root.Position).Magnitude
+    local twInfo = TweenInfo.new(dist / Cfg.GlideSpeed, Enum.EasingStyle.Linear, Enum.EasingDirection.Out)
+    CurrentTween = TweenService:Create(root, twInfo, {CFrame = CFrame.new(targetPos)})
+    CurrentTween:Play()
+    CurrentTween.Completed:Wait()
+end
+
+-- تثبيت الحركة وتجنب الوقوع في حالة Ragdoll
+local function StartStateKeeper()
+    if HeartbeatConn then HeartbeatConn:Disconnect() end
+    HeartbeatConn = RunService.Heartbeat:Connect(function()
+        if not Cfg.AutoFarmActive then return end
+        local char = player.Character
+        local hum  = char and char:FindFirstChildOfClass("Humanoid")
+        if hum and hum.Health > 0 then
+            local st = hum:GetState()
+            if st ~= Enum.HumanoidStateType.Running and st ~= Enum.HumanoidStateType.Jumping then
+                hum:ChangeState(Enum.HumanoidStateType.Running)
+            end
+        end
+    end)
+end
+
+-- محرك الفارمنج الرئيسي (Main Auto Farm Loop)
+local function StartWaypointAutoFarm()
+    if Cfg.AutoFarmActive then return end
+    Cfg.AutoFarmActive = true
+    IsRespawning = false
+    
+    CleanHazards()
+    StartStateKeeper()
+    
+    if CharAddedConn then CharAddedConn:Disconnect() end
+    CharAddedConn = player.CharacterAdded:Connect(function()
+        if Cfg.AutoFarmActive then
+            IsRespawning = true
+            CancelTween()
+            SetHoverVelocity(false)
+            task.wait(0.4)
+            IsRespawning = false
+            StartStateKeeper()
+        end
+    end)
+    
+    task.spawn(function()
+        while Cfg.AutoFarmActive do
+            if IsRespawning then task.wait(0.1) end
+            
+            local currentPath = BuildFarmPath()
+            
+            for i = 1, #currentPath do
+                if not Cfg.AutoFarmActive or IsRespawning then break end
+                local success = TweenToPosition(currentPath[i])
+                if not success then
+                    task.wait(0.1)
+                end
+            end
+            
+            -- الوصول للـ WinBlock النهائي
+            if Cfg.AutoFarmActive and not IsRespawning then
+                if Cfg.SelectedWorld == "World 2" then
+                    if Cfg.SelectedTarget == "فارم 600k كأس" then
+                        TweenToWinBlock("WinBlock18", Vector3.new(-397.63, 607.67, 615))
+                    elseif Cfg.SelectedTarget == "فارم 400k كأس" then
+                        TweenToWinBlock("WinBlock17", Vector3.new(-413.77, 511.58, 440))
+                    elseif Cfg.SelectedTarget == "فارم 250k كأس" then
+                        TweenToWinBlock("WinBlock16", Vector3.new(-414.67, 508.91, 195))
+                    end
+                elseif Cfg.SelectedWorld == "World 3" then
+                    if Cfg.SelectedTarget == "فارم 5.5b كأس" then
+                        TweenToWinBlock("WinBlock38", Vector3.new(-3215.93, 682.43, 1461.07))
+                    elseif Cfg.SelectedTarget == "فارم 3.5b كأس" then
+                        TweenToWinBlock("WinBlock37", Vector3.new(-2062.84, 505.46, 1458.08))
+                    elseif Cfg.SelectedTarget == "فارم 2b كأس" then
+                        TweenToWinBlock("WinBlock36", Vector3.new(-1430.49, 542.94, 1329.7))
+                    elseif Cfg.SelectedTarget == "فارم 1.2b كأس" then
+                        TweenToWinBlock("WinBlock35", Vector3.new(-1432.49, 544.95, 758.3))
+                    end
+                end
+            end
+            
+            SetHoverVelocity(false)
+            task.wait(0.5)
+        end
+    end)
+end
+
+local function StopWaypointAutoFarm()
+    Cfg.AutoFarmActive = false
+    IsRespawning = false
+    CancelTween()
+    SetHoverVelocity(false)
+    if CharAddedConn then CharAddedConn:Disconnect() end
+    if HeartbeatConn then HeartbeatConn:Disconnect() end
 end
 
 --======================================
--- 4. نظام المفاتيح والتحقق
+-- 5. نظام المفاتيح والتحقق
 --======================================
 local function KeySystemCheck()
     local keyPassed = false
@@ -182,13 +398,13 @@ end
 KeySystemCheck()
 
 --======================================
--- 5. تحميل واجهة WindUI
+-- 6. تحميل واجهة WindUI
 --======================================
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "LUX-ADK V7.0 🚀 (Sequential World Master)",
-    Icon = "layers",
+    Title = "LUX-ADK V8.0 🚀 (Waypoint Master)",
+    Icon = "shield-check",
     Theme = "Dark",
 })
 
@@ -198,101 +414,94 @@ local PremiumTab  = Window:Tab({ Title = "VIP Premium", Icon = "crown" })
 local SettingsTab = Window:Tab({ Title = "Settings", Icon = "settings" })
 
 --======================================
--- 6. قسم التجميل والتخطي المتسلسل (Sequential Auto Farm)
+-- 7. قسم الأوتو فارم (Auto Farm Tab)
 --======================================
+
+local TargetDropdown
 
 FarmTab:Dropdown({
     Title = "🗺️ اختر العالم المستهدف",
     Icon = "map-pin",
-    Values = {"World 1 (150k Wins)", "World 2 (200m Wins)", "World 3 (3.5b Wins)"},
-    Value = "World 1 (150k Wins)",
-    Default = "World 1 (150k Wins)",
+    Values = {"World 2", "World 3"},
+    Value = "World 3",
+    Default = "World 3",
     Callback = function(opt)
         local val = type(opt) == "table" and opt[1] or opt
-        if val:find("World 1") then Cfg.SelectedWorld = "World 1" end
-        if val:find("World 2") then Cfg.SelectedWorld = "World 2" end
-        if val:find("World 3") then Cfg.SelectedWorld = "World 3" end
+        Cfg.SelectedWorld = val
+        if val == "World 2" then
+            Cfg.SelectedTarget = "فارم 600k كأس"
+        else
+            Cfg.SelectedTarget = "فارم 3.5b كأس"
+        end
         notify("العالم المختار 🌍", "تم الضبط على: " .. Cfg.SelectedWorld)
     end
 })
 
 FarmTab:Dropdown({
-    Title = "⚡ سرعة المرور بين المراحل (Step Delay)",
-    Icon = "gauge",
-    Values = {"0.05s (سريع جداً)", "0.08s (ممتاز ومستقر)", "0.15s (آمن للغاية)"},
-    Value = "0.08s (ممتاز ومستقر)",
-    Default = "0.08s (ممتاز ومستقر)",
+    Title = "🏆 اختر نوع الكأس / الهدف",
+    Icon = "trophy",
+    Values = {"فارم 5.5b كأس", "فارم 3.5b كأس", "فارم 2b كأس", "فارم 1.2b كأس", "فارم 600k كأس", "فارم 400k كأس", "فارم 250k كأس"},
+    Value = "فارم 3.5b كأس",
+    Default = "فارم 3.5b كأس",
     Callback = function(opt)
-        local rawVal = type(opt) == "table" and opt[1] or opt
-        local num = tonumber(string.match(tostring(rawVal), "%d+%.?%d*"))
-        if num then Cfg.StepDelay = num end
+        local val = type(opt) == "table" and opt[1] or opt
+        Cfg.SelectedTarget = val
+        notify("الهدف المختار 🎯", "تم الضبط على: " .. val)
     end
 })
 
--- ⭐ أوتو فارم المتسلسل (يمر مرحلة مرحلة بالترتيب)
+FarmTab:Dropdown({
+    Title = "⚡ سرعة الانزلاق بين الإحداثيات",
+    Icon = "gauge",
+    Values = {"115 (آمن وحذر)", "175 (سريع وممتاز)", "220 (خارق)"},
+    Value = "175 (سريع وممتاز)",
+    Default = "175 (سريع وممتاز)",
+    Callback = function(opt)
+        local rawVal = type(opt) == "table" and opt[1] or opt
+        local num = tonumber(string.match(tostring(rawVal), "%d+"))
+        if num then Cfg.GlideSpeed = num end
+    end
+})
+
 FarmTab:Toggle({
-    Title = "🤖 تشغيل Auto Farm المتسلسل (مرحلة مرحلة)",
+    Title = "🤖 تشغيل Auto Farm الإحداثيات (Waypoint Engine)",
     Value = false,
     Callback = function(v)
-        Cfg.AutoFarmActive = v
         if v then
-            notify("Sequential Auto Farm 🚀", "بدء التخطي المتسلسل لـ " .. Cfg.SelectedWorld .. "...", 3)
-            task.spawn(function()
-                while Cfg.AutoFarmActive do
-                    local char = player.Character
-                    local root = char and char:FindFirstChild("HumanoidRootPart")
-                    local hum  = char and char:FindFirstChildOfClass("Humanoid")
-                    
-                    if root and hum and hum.Health > 0 then
-                        local stagesList = GetOrderedStagesForSelectedWorld()
-                        
-                        if #stagesList > 0 then
-                            local oldNoclip = Cfg.Noclip
-                            Cfg.Noclip = true
-                            
-                            -- المرور عبر جميع المراحل والبوابات بالترتيب
-                            for i, stagePart in ipairs(stagesList) do
-                                if not Cfg.AutoFarmActive or not root.Parent then break end
-                                
-                                root.CFrame = stagePart.CFrame + Vector3.new(0, 2, 0)
-                                
-                                pcall(function()
-                                    firetouchinterest(root, stagePart, 0)
-                                    task.wait(0.02)
-                                    firetouchinterest(root, stagePart, 1)
-                                end)
-                                
-                                task.wait(Cfg.StepDelay)
-                            end
-                            
-                            Cfg.Noclip = oldNoclip
-                            notify("Auto Farm 🏆", "تم إنهاء مراحل " .. Cfg.SelectedWorld .. " بنجاح!", 2)
-                            task.wait(1)
-                            
-                            if Cfg.AutoFarmActive and Cfg.AutoRespawn and hum then
-                                hum.Health = 0
-                                task.wait(3.5)
-                            end
-                        else
-                            notify("بحث 🔍", "جارٍ البحث عن مراحل " .. Cfg.SelectedWorld .. "...")
-                            task.wait(2)
-                        end
-                    end
-                    task.wait(0.5)
-                end
-            end)
+            notify("Safe Farm 🚀", "بدء الأوتو فارم القائم على الإحداثيات...", 3)
+            StartWaypointAutoFarm()
+        else
+            notify("إيقاف 🛑", "تم إيقاف الأوتو فارم.", 2)
+            StopWaypointAutoFarm()
         end
     end
 })
 
-FarmTab:Toggle({
-    Title = "🔄 Auto Reset (إعادة الرسبون للبدء من جديد)",
-    Value = true,
-    Callback = function(v) Cfg.AutoRespawn = v end
+FarmTab:Button({
+    Title = "⚡ تجربة الفوز المباشر (Remote Win Event)",
+    Callback = function()
+        local count = 0
+        for _, obj in pairs(ReplicatedStorage:GetDescendants()) do
+            if obj:IsA("RemoteEvent") or obj:IsA("UnreliableRemoteEvent") then
+                local nm = obj.Name:lower()
+                if nm:find("win") or nm:find("stage") or nm:find("add") or nm:find("claim") or nm:find("finish") then
+                    pcall(function()
+                        obj:FireServer()
+                        count = count + 1
+                    end)
+                end
+            end
+        end
+        if count > 0 then
+            notify("Remote Win ⚡", "تم إرسال " .. count .. " إشارة فوز للسيرفر!")
+        else
+            notify("تنبيه ⚠️", "لم يتم العثور على ريموت فوز مباشر في ذاكرة اللعبة.")
+        end
+    end
 })
 
 --======================================
--- 7. قسم الحركة والخدمات (Movement Tab)
+-- 8. قسم الحركة والخدمات (Movement Tab)
 --======================================
 
 local FlyBV, FlyBG, FlyConn
@@ -379,7 +588,7 @@ RunService.Stepped:Connect(function()
 end)
 
 --======================================
--- 8. حماية الخمول وإغلاق السكربت
+-- 9. حماية الخمول وإغلاق السكربت
 --======================================
 pcall(function()
     player.Idled:Connect(function()
@@ -392,7 +601,7 @@ pcall(function()
 end)
 
 PremiumTab:Toggle({
-    Title = "🛡️ Anti-AFK (تجميع مستمر)",
+    Title = "🛡️ Anti-AFK (تجميع مستمر دون طرد)",
     Value = true,
     Callback = function(v) Cfg.AntiAFK = v end
 })
@@ -400,11 +609,11 @@ PremiumTab:Toggle({
 SettingsTab:Button({
     Title = "❌ إغلاق السكربت",
     Callback = function()
-        Cfg.AutoFarmActive = false
+        StopWaypointAutoFarm()
         StopFly()
         Window:Destroy()
         notify("إغلاق", "تم إيقاف السكربت!")
     end
 })
 
-notify("LUX-ADK V7.0 Ready", "جاهز! تم تفعيل نظام التخطي المتسلسل لكل العوالم.", 5)
+notify("LUX-ADK V8.0 Ready", "جاهز! تم دمج نظام الإحداثيات وحماية الخمول بنجاح.", 5)
