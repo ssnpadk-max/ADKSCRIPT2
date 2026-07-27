@@ -1,6 +1,6 @@
 --[[
-📜 LUX-ADK SCRIPT V2.5 (Integrated & WindUI Edition)
-🔒 Integrated with Escape Keyboard Hub Features & Single-Use Key System
+📜 LUX-ADK SCRIPT V3.0 (Ultimate Multi-Farm Edition)
+🔒 Integrated with Escape Keyboard Hub & WindUI Library
 --]]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
@@ -21,7 +21,35 @@ local Camera     = workspace.CurrentCamera
 local fileName   = "lux_suggestions.json"
 local codesFileName = "lux_codes_v2.json"
 
--- دالة إشعارات عامة
+-- حالة الإعدادات المتكاملة (Configuration State)
+local Cfg = {
+    -- إعدادات Auto Win
+    WinPos          = Vector3.new(-6809.3223, 531.2539, 1468.8073),
+    WinSpeed        = 300,
+    WinHeight       = 900,
+    AutoWin         = false,
+    
+    -- أنماط الفارم الأخرى
+    AutoTweenW3     = false,
+    AutoWalkSim     = false,
+    AutoWalkSmart   = false,
+    
+    -- الحركة والسرعات
+    Fly             = false,
+    FlySpeed        = 300,
+    Noclip          = false,
+    WalkSpeed       = 16,
+    JumpPower       = 50,
+    InfiniteJump    = false,
+    
+    -- الحماية والخلفية
+    AntiAFK         = false,
+    GodModeBasic    = false,
+    GodModeAdv      = false,
+    AirWalk         = false
+}
+
+-- دالة الإشعارات
 local function notify(title, text, duration)
     pcall(function()
         StarterGui:SetCore("SendNotification", {
@@ -33,13 +61,14 @@ local function notify(title, text, duration)
 end
 
 --======================================
--- 2. نظام البريميوم والكودات (40 كود - شخص واحد فقط)
+-- 2. نظام البريميوم والأكواد الـ 40 (Single-Use Lock)
 --======================================
 local premiumWhitelist = {
     ["ldl_160100"] = true,
     ["rayan_58060"] = true,
 }
 
+-- قائمة الأكواد الـ 40 الطويلة
 local validCodes = {
     ["SSAD3KHUP89C-7"] = true,
     ["LUX892KDA1M9-1"] = true,
@@ -109,7 +138,7 @@ end
 
 local isPremiumUser = isPremiumActive()
 
--- إحداثيات الفارم والعالم الثالث
+-- نقاط فارم العالم الثالث
 local world3Waypoints = {
     Vector3.new(-1457, -161, -913),
     Vector3.new(-1465, -160, -938),
@@ -120,11 +149,6 @@ local world3Waypoints = {
     Vector3.new(-1461, -90, -122),
     Vector3.new(-1482, -56, -16)
 }
-
--- إعدادات Auto Win (من السكربت الثاني)
-local winPos   = Vector3.new(-6809.3223, 531.2539, 1468.8073)
-local winSpeed = 300
-local winHeight = 900
 
 --======================================
 -- 3. نظام التحقق والمفاتيح (Key System)
@@ -224,97 +248,168 @@ end
 KeySystemCheck()
 
 --======================================
--- 4. تحميل واجهة WindUI
+-- 4. محرك الطيران المطور (Smooth WASD Fly System)
+--======================================
+local FlyBV, FlyBG, FlyConn
+
+local function StartFly()
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+
+    if not root or not hum then return end
+
+    if FlyBV then FlyBV:Destroy() end
+    if FlyBG then FlyBG:Destroy() end
+    if FlyConn then FlyConn:Disconnect() end
+
+    hum.PlatformStand = true
+
+    FlyBG = Instance.new("BodyGyro")
+    FlyBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    FlyBG.P         = 5e4
+    FlyBG.CFrame    = root.CFrame
+    FlyBG.Parent    = root
+
+    FlyBV = Instance.new("BodyVelocity")
+    FlyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+    FlyBV.Velocity = Vector3.zero
+    FlyBV.Parent   = root
+
+    FlyConn = RunService.RenderStepped:Connect(function()
+        if not Cfg.Fly then return end
+        local cam = Camera.CFrame
+        local spd = Cfg.FlySpeed
+        local vel = Vector3.zero
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W)          then vel = vel + cam.LookVector   * spd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S)          then vel = vel - cam.LookVector   * spd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A)          then vel = vel - cam.RightVector  * spd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D)          then vel = vel + cam.RightVector  * spd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.Space)      then vel = vel + Vector3.yAxis    * spd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)then vel = vel - Vector3.yAxis    * spd end
+
+        FlyBV.Velocity = vel
+        FlyBG.CFrame   = cam
+    end)
+end
+
+local function StopFly()
+    Cfg.Fly = false
+    if FlyConn then FlyConn:Disconnect(); FlyConn = nil end
+    if FlyBV   then FlyBV:Destroy(); FlyBV = nil end
+    if FlyBG   then FlyBG:Destroy(); FlyBG = nil end
+
+    local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if hum then 
+        hum.PlatformStand = false 
+        hum:ChangeState(Enum.HumanoidStateType.Running)
+    end
+end
+
+player.CharacterAdded:Connect(function()
+    task.wait(1)
+    if Cfg.Fly then StartFly() end
+end)
+
+--======================================
+-- 5. تحميل واجهة WindUI
 --======================================
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "LUX-ADK V2.5 🚀 (Integrated)",
+    Title = "LUX-ADK V3.0 🚀 (Ultimate)",
     Icon = "star",
     Theme = "Dark",
 })
 
--- إنشاء التبويبات (Tabs)
-local FarmTab    = Window:Tab({ Title = "Auto Farm & Win", Icon = "zap" })
-local PremiumTab = Window:Tab({ Title = "VIP Premium", Icon = "crown" })
-local CodesTab   = Window:Tab({ Title = "Codes", Icon = "key" })
-local NewsTab    = Window:Tab({ Title = "News", Icon = "newspaper" })
-local SuggestTab = Window:Tab({ Title = "Suggest", Icon = "message-square" })
+-- إنشاء التبويبات المدمجة
+local FarmTab     = Window:Tab({ Title = "Auto Farm Modes", Icon = "zap" })
+local MoveTab     = Window:Tab({ Title = "Movement & Speed", Icon = "plane" })
+local PremiumTab  = Window:Tab({ Title = "VIP Premium", Icon = "crown" })
+local CodesTab    = Window:Tab({ Title = "Codes", Icon = "key" })
+local NewsTab     = Window:Tab({ Title = "News & Info", Icon = "newspaper" })
+local SuggestTab  = Window:Tab({ Title = "Misc & Settings", Icon = "settings" })
 
 --======================================
--- 5. قسم الفارم والأوتو وين المدمج (Farm & Win Tab)
+-- 6. قسم الفارم التلقائي المدمج (Auto Farm Modes)
 --======================================
 
--- [خاصية جديدة 1]: Auto Win (Smooth Travel) المدمجة من السكربت الثاني
-local autoWinEnabled = false
+-- 🏆 NORM 1: Auto Win (Smooth Sky Travel)
 FarmTab:Toggle({
-    Title = "🏆 Auto Win (Smooth Travel)",
+    Title = "🏆 Mode 1: Auto Win (Smooth Sky Travel)",
     Value = false,
-    Callback = function(state)
-        autoWinEnabled = state
-        if state then
+    Callback = function(v)
+        Cfg.AutoWin = v
+        if v then
             task.spawn(function()
-                while autoWinEnabled do
+                while Cfg.AutoWin do
                     local char = player.Character
                     local root = char and char:FindFirstChild("HumanoidRootPart")
                     
-                    if root and winPos then
-                        local dist = (root.Position - winPos).Magnitude
+                    if root and Cfg.WinPos then
+                        local dist = (root.Position - Cfg.WinPos).Magnitude
 
                         if dist > 5 then
-                            -- 1. الارتفاع للأعلى
-                            notify("Auto Win 🏆", "جارٍ الارتفاع للأعلى...", 2)
+                            if not Cfg.Fly then
+                                Cfg.Fly = true
+                                StartFly()
+                            end
+                            local oldNoclip = Cfg.Noclip
+                            Cfg.Noclip = true
+
+                            notify("Auto Win 🏆", "1/3 جارٍ الارتفاع للسماء...", 2)
                             local riseStart = root.CFrame
-                            local riseEnd = riseStart * CFrame.new(0, winHeight, 0)
+                            local riseEnd = riseStart * CFrame.new(0, Cfg.WinHeight, 0)
 
                             for i = 0, 1, 0.05 do
-                                if not autoWinEnabled or not root.Parent then break end
+                                if not Cfg.AutoWin or not root.Parent then break end
                                 root.CFrame = riseStart:Lerp(riseEnd, i)
                                 task.wait(0.02)
                             end
 
-                            if not autoWinEnabled or not root.Parent then return end
+                            if not Cfg.AutoWin or not root.Parent then Cfg.Noclip = oldNoclip; StopFly(); return end
                             task.wait(0.2)
 
-                            -- 2. الانتقال الأفقي للموقع
-                            notify("Auto Win 🏆", "جارٍ الانتقال لخط النهاية...", 2)
+                            notify("Auto Win 🏆", "2/3 جارٍ الطيران نحو نقطة النهاية...", 2)
                             local startCF = root.CFrame
-                            local targetPos = Vector3.new(winPos.X, root.Position.Y, winPos.Z)
+                            local targetPos = Vector3.new(Cfg.WinPos.X, root.Position.Y, Cfg.WinPos.Z)
                             local targetCF = CFrame.new(targetPos, Vector3.new(targetPos.X, targetPos.Y, targetPos.Z + 1))
 
                             local distance = (root.Position - targetPos).Magnitude
-                            local steps = math.floor(distance / (winSpeed / 30))
+                            local steps = math.floor(distance / (Cfg.WinSpeed / 30))
 
                             for i = 1, steps do
-                                if not autoWinEnabled or not root.Parent then break end
+                                if not Cfg.AutoWin or not root.Parent then break end
                                 root.CFrame = startCF:Lerp(targetCF, i/steps)
                                 task.wait(0.03)
                             end
 
-                            if not autoWinEnabled or not root.Parent then return end
+                            if not Cfg.AutoWin or not root.Parent then Cfg.Noclip = oldNoclip; StopFly(); return end
                             task.wait(0.2)
 
-                            -- 3. الهبوط إلى النقطة النهائية
-                            notify("Auto Win 🏆", "جارٍ الهبوط والمطالبة بالفوز...", 2)
+                            notify("Auto Win 🏆", "3/3 جارٍ الهبوط والمطالبة بالفوز...", 2)
                             local currentCF = root.CFrame
-                            local finalCF = CFrame.new(winPos)
+                            local finalCF = CFrame.new(Cfg.WinPos)
 
                             for i = 0, 1, 0.01 do
-                                if not autoWinEnabled or not root.Parent then break end
+                                if not Cfg.AutoWin or not root.Parent then break end
                                 root.CFrame = currentCF:Lerp(finalCF, i)
                                 task.wait(0.01)
                             end
 
                             if root.Parent then root.CFrame = finalCF end
 
-                            notify("Auto Win 🏆", "تم الوصول! إعادة التجميع خلال 3 ثوانٍ...", 3)
+                            Cfg.Noclip = oldNoclip
+                            StopFly()
+
+                            notify("Auto Win 🏆", "تم الوصول بنجاح! إعادة الرسبون خلال 3 ثوانٍ...", 3)
                             task.wait(3)
 
-                            -- إعادة الرسبون لتكرار العملية
                             local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
                             if hum then hum.Health = 0 end
 
-                            notify("Auto Win 🏆", "جارٍ إعادة الرسبون... الدورة القادمة بعد 5 ثوانٍ", 5)
+                            notify("Auto Win 🏆", "جارٍ إعادة التجميع... الدورة التالية بعد 5 ثوانٍ.", 5)
                             task.wait(5)
                         end
                     end
@@ -325,16 +420,47 @@ FarmTab:Toggle({
     end
 })
 
--- [خاصية جديدة 2]: Auto Walk (المحاكاة ذكية)
-local autoWalkSim = false
+-- ⚡ MODE 2: Auto Tween (World 3 Waypoints)
 FarmTab:Toggle({
-    Title = "🏃 Auto Walk (محاكاة المشي الذكية)",
+    Title = "⚡ Mode 2: Auto Tween (World 3 Waypoints)",
     Value = false,
-    Callback = function(state)
-        autoWalkSim = state
-        if state then
+    Callback = function(v)
+        Cfg.AutoTweenW3 = v
+        if v then
             task.spawn(function()
-                while autoWalkSim do
+                while Cfg.AutoTweenW3 do
+                    local character = player.Character
+                    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
+                    if rootPart then
+                        for _, targetPos in ipairs(world3Waypoints) do
+                            if not Cfg.AutoTweenW3 then break end
+                            local distance = (rootPart.Position - targetPos).Magnitude
+                            local tweenInfo = TweenInfo.new(distance / 220, Enum.EasingStyle.Linear)
+                            local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(targetPos)})
+                            tween:Play()
+                            tween.Completed:Wait()
+                        end
+                        if Cfg.AutoTweenW3 then
+                            task.wait(0.8)
+                            repeat task.wait(0.1) until not Cfg.AutoTweenW3 or (rootPart.Position.Z < -800)
+                        end
+                    else task.wait(0.5) end
+                    task.wait(0.1)
+                end
+            end)
+        end
+    end
+})
+
+-- 🏃 MODE 3: Auto Walk Simulator (Simulate Movement)
+FarmTab:Toggle({
+    Title = "🏃 Mode 3: Auto Walk Simulator (Forward/Backward)",
+    Value = false,
+    Callback = function(v)
+        Cfg.AutoWalkSim = v
+        if v then
+            task.spawn(function()
+                while Cfg.AutoWalkSim do
                     local char = player.Character
                     local hum  = char and char:FindFirstChildOfClass("Humanoid")
                     if hum then
@@ -349,83 +475,117 @@ FarmTab:Toggle({
     end
 })
 
--- الفارم الخاص بالعالم الثالث
-local farmEnabled = false
-local function startWorld3Farm()
-    while farmEnabled do
-        local character = player.Character
-        local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-        if rootPart then
-            for _, targetPos in ipairs(world3Waypoints) do
-                if not farmEnabled then break end
-                local distance = (rootPart.Position - targetPos).Magnitude
-                local tweenInfo = TweenInfo.new(distance / 220, Enum.EasingStyle.Linear)
-                local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(targetPos)})
-                tween:Play()
-                tween.Completed:Wait()
-            end
-            if farmEnabled then
-                task.wait(0.8)
-                repeat task.wait(0.1) until not farmEnabled or (rootPart.Position.Z < -800)
-            end
-        else task.wait(0.5) end
-        task.wait(0.1)
-    end
-end
-
+-- 🎯 MODE 4: Smart Walk (Camera Relative Direction)
 FarmTab:Toggle({
-    Title = "⚡ Auto Tween - World 3",
+    Title = "🎯 Mode 4: Smart Walk (Camera Look Direction)",
     Value = false,
-    Callback = function(state)
-        farmEnabled = state
-        if state then task.spawn(startWorld3Farm) end
-    end
-})
-
--- منع الطرد Anti-AFK
-local antiAfkConnection = nil
-FarmTab:Toggle({
-    Title = "🛑 Anti AFK (منع الطرد)",
-    Value = false,
-    Callback = function(state)
-        if state then
-            antiAfkConnection = player.Idled:Connect(function()
-                VirtualUser:Button2Down(Vector2.new(0,0), Camera.CFrame) task.wait(0.5)
-                VirtualUser:Button2Up(Vector2.new(0,0), Camera.CFrame)
-            end)
-        else
-            if antiAfkConnection then antiAfkConnection:Disconnect(); antiAfkConnection = nil end
-        end
-    end
-})
-
--- نمط الطيران (Fly Mode)
-local flightSpeed = 2
-local flying, bv, bg = false, nil, nil
-FarmTab:Toggle({
-    Title = "✈️ Toggle Fly Mode",
-    Value = false,
-    Callback = function(state)
-        flying = state
-        local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-        if flying and hrp then
-            if not bv then bv = Instance.new("BodyVelocity", hrp); bv.MaxForce = Vector3.new(9e9, 9e9, 9e9) end
-            if not bg then bg = Instance.new("BodyGyro", hrp); bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9) end
+    Callback = function(v)
+        Cfg.AutoWalkSmart = v
+        if v then
             task.spawn(function()
-                while flying and hrp.Parent do
-                    bv.Velocity = Camera.CFrame.LookVector * (flightSpeed * 25)
-                    bg.CFrame = Camera.CFrame
+                while Cfg.AutoWalkSmart do
+                    local char = player.Character
+                    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+                    if hum and hum.Health > 0 then
+                        local camLook = Camera.CFrame.LookVector
+                        local moveDir = Vector3.new(camLook.X, 0, camLook.Z).Unit
+                        if moveDir.Magnitude > 0 then hum:Move(moveDir, false) end
+                    end
                     task.wait()
                 end
             end)
-        else
-            if bv then bv:Destroy(); bv = nil end
-            if bg then bg:Destroy(); bg = nil end
         end
     end
 })
 
--- وضع الخلود الأساسي (God Mode Basic)
+--======================================
+-- 7. قسم الحركة والسرعات (Movement Tab)
+--======================================
+
+MoveTab:Toggle({
+    Title = "✈️ Toggle Fly Mode (WASD + Space/Ctrl)",
+    Value = false,
+    Callback = function(v)
+        Cfg.Fly = v
+        if v then StartFly() else StopFly() end
+    end
+})
+
+MoveTab:Dropdown({
+    Title = "Fly Speed",
+    Icon = "zap",
+    Values = {"50", "100", "200", "300", "500", "1000", "2000"},
+    Value = "300",
+    Default = "300",
+    Callback = function(option)
+        local rawVal = type(option) == "table" and option[1] or option
+        local num = tonumber(string.match(tostring(rawVal), "%d+"))
+        if num then Cfg.FlySpeed = num end
+    end
+})
+
+MoveTab:Toggle({
+    Title = "🧱 Noclip (اختراق الجدران)",
+    Value = false,
+    Callback = function(v)
+        Cfg.Noclip = v
+    end
+})
+
+MoveTab:Dropdown({
+    Title = "Walk Speed",
+    Icon = "zap",
+    Values = {"16", "30", "50", "80", "100", "150", "200", "300", "500"},
+    Value = "16",
+    Default = "16",
+    Callback = function(option)
+        local rawVal = type(option) == "table" and option[1] or option
+        local num = tonumber(string.match(tostring(rawVal), "%d+"))
+        if num then Cfg.WalkSpeed = num end
+    end
+})
+
+MoveTab:Dropdown({
+    Title = "Jump Power",
+    Icon = "zap",
+    Values = {"50", "70", "100", "130", "160", "200", "300", "500"},
+    Value = "50",
+    Default = "50",
+    Callback = function(option)
+        local rawVal = type(option) == "table" and option[1] or option
+        local num = tonumber(string.match(tostring(rawVal), "%d+"))
+        if num then Cfg.JumpPower = num end
+    end
+})
+
+-- حلقة تطبيق الفيزياء وتطبيق Noclip/Speed باستمرار
+RunService.Stepped:Connect(function()
+    local char = player.Character
+    if char then
+        local hum  = char:FindFirstChildOfClass("Humanoid")
+        
+        -- Noclip
+        if Cfg.Noclip then
+            for _, part in pairs(char:GetDescendants()) do
+                if part:IsA("BasePart") and part.CanCollide then
+                    part.CanCollide = false
+                end
+            end
+        end
+
+        -- Walk Speed & Jump Power
+        if hum and hum.Health > 0 then
+            hum.WalkSpeed = Cfg.WalkSpeed
+            hum.UseJumpPower = true
+            hum.JumpPower = Cfg.JumpPower
+        end
+    end
+end)
+
+--======================================
+-- 8. قسم الحماية والبريميوم (VIP Premium Tab)
+--======================================
+
 local gmBasicConn, basicDangers = nil, {"kill", "lava", "laser", "spike"}
 local function clearBasicDanger(obj)
     if obj:IsA("BasePart") then
@@ -436,10 +596,11 @@ local function clearBasicDanger(obj)
     end
 end
 
-FarmTab:Toggle({
-    Title = "🛡️ God Mode (Basic)",
+PremiumTab:Toggle({
+    Title = "🛡️ God Mode (Basic Hazards)",
     Value = false,
     Callback = function(state)
+        Cfg.GodModeBasic = state
         if state then
             for _, obj in pairs(workspace:GetDescendants()) do clearBasicDanger(obj) end
             gmBasicConn = workspace.DescendantAdded:Connect(clearBasicDanger)
@@ -449,64 +610,6 @@ FarmTab:Toggle({
     end
 })
 
--- عناصر السرعة والقفز Dropdowns
-local customWalkSpeed = 16
-local customJumpPower = 50
-
-FarmTab:Dropdown({
-    Title = "Flight Speed",
-    Icon = "zap",
-    Values = {"1 s", "2 s", "3 s", "4 s", "5 s", "6 s", "7 s", "8 s", "9 s", "10 s"},
-    Value = "2 s",
-    Default = "2 s",
-    Callback = function(option)
-        local rawVal = type(option) == "table" and option[1] or option
-        local num = tonumber(string.match(tostring(rawVal), "%d+"))
-        if num then flightSpeed = num end
-    end
-})
-
-FarmTab:Dropdown({
-    Title = "Walk Speed",
-    Icon = "zap",
-    Values = {"16", "30", "50", "80", "100", "150", "200", "250", "300", "320"},
-    Value = "16",
-    Default = "16",
-    Callback = function(option)
-        local rawVal = type(option) == "table" and option[1] or option
-        local num = tonumber(string.match(tostring(rawVal), "%d+"))
-        if num then customWalkSpeed = num end
-    end
-})
-
-FarmTab:Dropdown({
-    Title = "Jump Power",
-    Icon = "zap",
-    Values = {"50", "70", "100", "130", "160", "200", "250", "300", "320"},
-    Value = "50",
-    Default = "50",
-    Callback = function(option)
-        local rawVal = type(option) == "table" and option[1] or option
-        local num = tonumber(string.match(tostring(rawVal), "%d+"))
-        if num then customJumpPower = num end
-    end
-})
-
-RunService.Stepped:Connect(function()
-    local char = player.Character
-    if char then
-        local hum = char:FindFirstChildOfClass("Humanoid")
-        if hum and hum.Health > 0 then
-            hum.WalkSpeed = customWalkSpeed
-            hum.UseJumpPower = true
-            hum.JumpPower = customJumpPower
-        end
-    end
-end)
-
---======================================
--- 6. قسم البريميوم (VIP Premium)
---======================================
 local gmAdvConn, advDangers = nil, {"tsunami", "wave", "water", "flood", "acid", "trap", "brick", "ball", "enemy", "zombie", "dummy", "npc", "killer", "hurt", "disaster"}
 local function clearAdvDanger(obj)
     if obj:IsA("BasePart") or obj:IsA("Model") then
@@ -518,13 +621,14 @@ local function clearAdvDanger(obj)
 end
 
 PremiumTab:Toggle({
-    Title = "⭐ God Mode II (Anti-Tsunami)",
+    Title = "⭐ VIP God Mode II (Anti-Tsunami & Disasters)",
     Value = false,
     Callback = function(state)
         if not isPremiumUser then
             notify("VIP Premium 🌟", "هذه الميزة مقفلة للبريميوم فقط!")
             return
         end
+        Cfg.GodModeAdv = state
         if state then
             for _, obj in pairs(workspace:GetDescendants()) do clearAdvDanger(obj) end
             gmAdvConn = workspace.DescendantAdded:Connect(clearAdvDanger)
@@ -544,13 +648,14 @@ airPart.CanCollide = true
 
 local airWalkConn = nil
 PremiumTab:Toggle({
-    Title = "⭐ Air Walk (مشي في الهواء)",
+    Title = "⭐ VIP Air Walk (منصة المشي بالهواء)",
     Value = false,
     Callback = function(state)
         if not isPremiumUser then
             notify("VIP Premium 🌟", "هذه الميزة مقفلة للبريميوم فقط!")
             return
         end
+        Cfg.AirWalk = state
         if state then
             airPart.Parent = workspace
             airWalkConn = RunService.RenderStepped:Connect(function()
@@ -564,45 +669,41 @@ PremiumTab:Toggle({
     end
 })
 
-local infiniteJumpActive = false
 PremiumTab:Toggle({
-    Title = "⭐ Infinite Jump (قفز لانهائي)",
+    Title = "⭐ VIP Infinite Jump (قفز لانهائي)",
     Value = false,
     Callback = function(state)
         if not isPremiumUser then
             notify("VIP Premium 🌟", "هذه الميزة مقفلة للبريميوم فقط!")
             return
         end
-        infiniteJumpActive = state
+        Cfg.InfiniteJump = state
     end
 })
 
 UserInputService.JumpRequest:Connect(function()
-    if infiniteJumpActive and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
+    if Cfg.InfiniteJump and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
         player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
     end
 end)
 
-local noclipActive = false
+local antiAfkConn = nil
 PremiumTab:Toggle({
-    Title = "⭐ Noclip (اختراق الجدران)",
+    Title = "🛑 Anti-AFK (منع الطرد التلقائي)",
     Value = false,
     Callback = function(state)
-        if not isPremiumUser then
-            notify("VIP Premium 🌟", "هذه الميزة مقفلة للبريميوم فقط!")
-            return
+        Cfg.AntiAFK = state
+        if state then
+            antiAfkConn = player.Idled:Connect(function()
+                VirtualUser:Button2Down(Vector2.new(0,0), Camera.CFrame)
+                task.wait(0.5)
+                VirtualUser:Button2Up(Vector2.new(0,0), Camera.CFrame)
+            end)
+        else
+            if antiAfkConn then antiAfkConn:Disconnect(); antiAfkConn = nil end
         end
-        noclipActive = state
     end
 })
-
-RunService.Stepped:Connect(function()
-    if noclipActive and player.Character then
-        for _, part in pairs(player.Character:GetDescendants()) do
-            if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end
-        end
-    end
-end)
 
 PremiumTab:Button({
     Title = "🗑️ Delete Diamonds & Lag Junk",
@@ -622,7 +723,7 @@ PremiumTab:Button({
 })
 
 --======================================
--- 7. قسم الكودات (Codes Tab - Single Use Locked)
+-- 9. قسم الكودات (Codes Tab - Single Use Lock)
 --======================================
 local inputCodeText = ""
 CodesTab:Input({
@@ -664,14 +765,14 @@ CodesTab:Button({
 })
 
 --======================================
--- 8. قسم الأخبار (News Tab)
+-- 10. قسم الأخبار والإعدادات (News & Misc Tab)
 --======================================
 local newsList = {
-    "🚀 تم إطلاق التحديث المدمج V2.5!",
-    "🏆 إضافة ميزة Auto Win (Smooth Travel) التلقائية.",
-    "🏃 إضافة ميزة Auto Walk لمحاكاة المشي ومنع الطرد.",
-    "🎁 تم تحديث نظام الأكواد الـ 40 لتصبح للاستخدام الفردي فقط.",
-    "⚡ تحسين وتطوير أداء التنقل والاستجابة."
+    "🚀 إطلاق النسخة المدمجة الكبرى LUX-ADK V3.0!",
+    "🏆 دمج 4 أنماط فارم مختلفة تلائم كافة العوالم.",
+    "✈️ تحسين وتطوير طيران WASD السلس مع التحكم بالسرعة.",
+    "🎁 تفعيل نظام الـ 40 كود طويلة للاستخدام الفردي المرة الواحدة.",
+    "🛡️ دمج حماية Anti-AFK وإزالة عناصر اللاق."
 }
 
 for _, newsText in ipairs(newsList) do
@@ -681,9 +782,7 @@ for _, newsText in ipairs(newsList) do
     })
 end
 
---======================================
--- 9. قسم الاقتراحات (Suggest Tab)
---======================================
+-- الاقتراحات وإلغاء السكربت
 local suggestText = ""
 SuggestTab:Input({
     Title = "اكتب اقتراحك",
@@ -710,5 +809,26 @@ SuggestTab:Button({
     end
 })
 
-notify("LUX-ADK V2.5 Loaded", "تم تحميل السكربت المدمج بنجاح!", 5)
+SuggestTab:Button({
+    Title = "❌ Unload Hub / إغلاق السكربت بالكامل",
+    Callback = function()
+        Cfg.AutoWin       = false
+        Cfg.AutoTweenW3   = false
+        Cfg.AutoWalkSim   = false
+        Cfg.AutoWalkSmart = false
+        Cfg.InfiniteJump  = false
+        StopFly()
+        
+        if antiAfkConn then antiAfkConn:Disconnect() end
+        if gmBasicConn then gmBasicConn:Disconnect() end
+        if gmAdvConn then gmAdvConn:Disconnect() end
+        if airWalkConn then airWalkConn:Disconnect() end
+        if airPart then airPart:Destroy() end
+        
+        Window:Destroy()
+        notify("Unloaded", "تم إيقاف السكربت وإغلاق اللوحة بنجاح!")
+    end
+})
+
+notify("LUX-ADK V3.0 Ultimate Loaded", "تم تحميل السكربت المدمج بنجاح!", 5)
 
