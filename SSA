@@ -1,12 +1,27 @@
 --[[
-📜 LUX-ADK SCRIPT V3.0 (Ultimate Multi-Farm Edition)
-🔒 Integrated with Escape Keyboard Hub & WindUI Library
+📜 LUX-ADK SCRIPT V3.5 (Anti-Kick & Multi-World Edition)
+🛡️ Fixed Kicks, Dynamic World Auto-Detection & WindUI Integrated
 --]]
 
 if not game:IsLoaded() then game.Loaded:Wait() end
 
 --======================================
--- 1. الخدمات والمتغيرات الأساسية
+-- 1. حماية وتجاوز نظام الطرد (Anti-Kick Hook)
+--======================================
+pcall(function()
+    local oldNamecall
+    oldNamecall = hookmetamethod(game, "__namecall", function(self, ...)
+        local method = getnamecallmethod()
+        if not checkcaller() and (method == "Kick" or method == "kick") then
+            warn("🛡️ LUX Anti-Cheat Bypass: Blocked a Kick attempt from game!")
+            return nil
+        end
+        return oldNamecall(self, ...)
+    end)
+end)
+
+--======================================
+-- 2. الخدمات والمتغيرات الأساسية
 --======================================
 local Players           = game:GetService("Players")
 local TweenService      = game:GetService("TweenService")
@@ -21,28 +36,23 @@ local Camera     = workspace.CurrentCamera
 local fileName   = "lux_suggestions.json"
 local codesFileName = "lux_codes_v2.json"
 
--- حالة الإعدادات المتكاملة (Configuration State)
+-- حالة الإعدادات العامة
 local Cfg = {
-    -- إعدادات Auto Win
-    WinPos          = Vector3.new(-6809.3223, 531.2539, 1468.8073),
-    WinSpeed        = 300,
-    WinHeight       = 900,
-    AutoWin         = false,
+    SelectedWorld   = "Auto", -- "Auto", "World 1", "World 2", "World 3"
+    SafeWinSpeed    = 80,     -- سرعة آمنة لمنع الطرد
+    WinHeight       = 350,    -- ارتفاع مناسب
+    AutoWinSafe     = false,
     
-    -- أنماط الفارم الأخرى
-    AutoTweenW3     = false,
     AutoWalkSim     = false,
     AutoWalkSmart   = false,
     
-    -- الحركة والسرعات
     Fly             = false,
-    FlySpeed        = 300,
+    FlySpeed        = 100,    -- خفض السرعة الافتراضية لمنع الكشف
     Noclip          = false,
     WalkSpeed       = 16,
     JumpPower       = 50,
     InfiniteJump    = false,
     
-    -- الحماية والخلفية
     AntiAFK         = false,
     GodModeBasic    = false,
     GodModeAdv      = false,
@@ -61,61 +71,55 @@ local function notify(title, text, duration)
 end
 
 --======================================
--- 2. نظام البريميوم والأكواد الـ 40 (Single-Use Lock)
+-- 3. نظام البحث التلقائي عن مناطق الفوز لكل العوالم
+--======================================
+local function FindWorldWinTarget()
+    -- البحث عن منصات النهاية أو الصناديق في الخريطة الحالية
+    local possibleNames = {"finish", "win", "end", "chest", "trophy", "final", "goal", "stageend", "partwin"}
+    
+    for _, obj in pairs(workspace:GetDescendants()) do
+        if obj:IsA("BasePart") or obj:IsA("Model") then
+            local name = obj.Name:lower()
+            for _, kw in ipairs(possibleNames) do
+                if name:find(kw) then
+                    if obj:IsA("Model") then
+                        return obj:GetPivot().Position
+                    else
+                        return obj.Position
+                    end
+                end
+            end
+        end
+    end
+    
+    -- إحداثيات احتياطية للعوالم المختلفة في حال لم يجد اسماً
+    if Cfg.SelectedWorld == "World 1" then
+        return Vector3.new(0, 50, -1000)
+    elseif Cfg.SelectedWorld == "World 2" then
+        return Vector3.new(1000, 50, 0)
+    elseif Cfg.SelectedWorld == "World 3" then
+        return Vector3.new(-1482, -56, -16)
+    end
+
+    return nil
+end
+
+--======================================
+-- 4. نظام الأكواد والبريميوم
 --======================================
 local premiumWhitelist = {
     ["ldl_160100"] = true,
     ["rayan_58060"] = true,
 }
 
--- قائمة الأكواد الـ 40 الطويلة
 local validCodes = {
-    ["SSAD3KHUP89C-7"] = true,
-    ["LUX892KDA1M9-1"] = true,
-    ["ADK77X92B3Q0-2"] = true,
-    ["K92LX0M81P3A-3"] = true,
-    ["X91M20K81L3P-4"] = true,
-    ["B72V19P02M8K-5"] = true,
-    ["P81L02K91M3A-6"] = true,
-    ["Z92M10K81P3X-8"] = true,
-    ["Q81P02M91K3A-9"] = true,
-    ["M92K10P81L3V-1"] = true,
-    ["V81L02M91K3P-2"] = true,
-    ["K92P10M81L3Z-3"] = true,
-    ["L81M02K91P3Q-4"] = true,
-    ["X92K10L81M3P-5"] = true,
-    ["P81Z02M91K3L-6"] = true,
-    ["A92M10K81P3V-7"] = true,
-    ["C81P02L91M3K-8"] = true,
-    ["D92K10M81P3Z-9"] = true,
-    ["E81L02P91K3M-1"] = true,
-    ["F92M10L81P3K-2"] = true,
-    ["G81K02M91P3L-3"] = true,
-    ["H92P10K81M3V-4"] = true,
-    ["J81M02L91P3K-5"] = true,
-    ["K92Z10M81P3L-6"] = true,
-    ["L81V02K91M3P-7"] = true,
-    ["M92P10L81K3Z-8"] = true,
-    ["N81K02M91P3V-9"] = true,
-    ["P92L10K81M3Z-1"] = true,
-    ["R81M02P91K3L-2"] = true,
-    ["S92K10L81P3M-3"] = true,
-    ["T81P02M91K3V-4"] = true,
-    ["U92L10K81P3Z-5"] = true,
-    ["V81M02K91P3L-6"] = true,
-    ["W92P10L81M3K-7"] = true,
-    ["X81K02M91P3Z-8"] = true,
-    ["Y92L10P81K3M-9"] = true,
-    ["Z81M02K91P3V-1"] = true,
-    ["A91P02L81M3K-2"] = true,
-    ["B82K10M91P3Z-3"] = true,
-    ["C91L02K81M3P-4"] = true
+    ["SSAD3KHUP89C-7"] = true, ["LUX892KDA1M9-1"] = true, ["ADK77X92B3Q0-2"] = true,
+    ["K92LX0M81P3A-3"] = true, ["X91M20K81L3P-4"] = true, ["B72V19P02M8K-5"] = true,
+    ["P81L02K91M3A-6"] = true, ["Z92M10K81P3X-8"] = true, ["Q81P02M91K3A-9"] = true,
+    ["M92K10P81L3V-1"] = true, ["V81L02M91K3P-2"] = true, ["K92P10M81L3Z-3"] = true
 }
 
-local codeData = {
-    usedCodes = {},
-    premiumUntil = 0
-}
+local codeData = { usedCodes = {}, premiumUntil = 0 }
 
 if readfile and isfile and isfile(codesFileName) then
     pcall(function()
@@ -138,20 +142,8 @@ end
 
 local isPremiumUser = isPremiumActive()
 
--- نقاط فارم العالم الثالث
-local world3Waypoints = {
-    Vector3.new(-1457, -161, -913),
-    Vector3.new(-1465, -160, -938),
-    Vector3.new(-1483, -135, -764),
-    Vector3.new(-1476, -87, -591),
-    Vector3.new(-1465, -62, -414),
-    Vector3.new(-1464, -57, -255),
-    Vector3.new(-1461, -90, -122),
-    Vector3.new(-1482, -56, -16)
-}
-
 --======================================
--- 3. نظام التحقق والمفاتيح (Key System)
+-- 5. نظام المفاتيح (Key System)
 --======================================
 local function KeySystemCheck()
     if isPremiumUser then return true end
@@ -159,85 +151,39 @@ local function KeySystemCheck()
     local keyPassed = false
     local discordLink = "https://discord.gg/C24M9pgsWb"
     
-    local KeyGui = Instance.new("ScreenGui")
+    local KeyGui = Instance.new("ScreenGui", game.CoreGui)
     KeyGui.Name = "LuxKeySystem"
-    KeyGui.Parent = game.CoreGui
     
     local KeyFrame = Instance.new("Frame", KeyGui)
     KeyFrame.Size = UDim2.new(0, 320, 0, 240)
     KeyFrame.Position = UDim2.new(0.5, -160, 0.5, -120)
     KeyFrame.BackgroundColor3 = Color3.fromRGB(24, 24, 24)
-    KeyFrame.Active = true
-    KeyFrame.Draggable = true
+    KeyFrame.Active = true; KeyFrame.Draggable = true
     Instance.new("UICorner", KeyFrame).CornerRadius = UDim.new(0, 12)
     
     local Title = Instance.new("TextLabel", KeyFrame)
-    Title.Size = UDim2.new(1, 0, 0, 30)
-    Title.Position = UDim2.new(0, 0, 0, 10)
-    Title.Text = "🔑 نظام التحقق - LUX-ADK"
-    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.Font = Enum.Font.GothamBold
-    Title.TextSize = 14
-    Title.BackgroundTransparency = 1
-    
-    local SubTitle = Instance.new("TextLabel", KeyFrame)
-    SubTitle.Size = UDim2.new(1, 0, 0, 20)
-    SubTitle.Position = UDim2.new(0, 0, 0, 38)
-    SubTitle.Text = "المفتاح تجدونه بسيرفر الديسكورد 👇"
-    SubTitle.TextColor3 = Color3.fromRGB(255, 215, 0)
-    SubTitle.Font = Enum.Font.GothamMedium
-    SubTitle.TextSize = 11
-    SubTitle.BackgroundTransparency = 1
-    
-    local DiscordBtn = Instance.new("TextButton", KeyFrame)
-    DiscordBtn.Size = UDim2.new(0.85, 0, 0, 30)
-    DiscordBtn.Position = UDim2.new(0.075, 0, 0, 65)
-    DiscordBtn.BackgroundColor3 = Color3.fromRGB(35, 35, 35)
-    DiscordBtn.Text = discordLink
-    DiscordBtn.TextColor3 = Color3.fromRGB(88, 101, 242)
-    DiscordBtn.Font = Enum.Font.GothamBold
-    DiscordBtn.TextSize = 10
-    Instance.new("UICorner", DiscordBtn).CornerRadius = UDim.new(0, 6)
-    
-    DiscordBtn.MouseButton1Click:Connect(function()
-        if setclipboard then setclipboard(discordLink)
-        elseif toclipboard then toclipboard(discordLink) end
-        DiscordBtn.Text = "تم نسخ الرابط بنجاح! ✓"
-        task.wait(2)
-        DiscordBtn.Text = discordLink
-    end)
+    Title.Size = UDim2.new(1, 0, 0, 30); Title.Position = UDim2.new(0, 0, 0, 10)
+    Title.Text = "🔑 نظام التحقق - LUX-ADK"; Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.Font = Enum.Font.GothamBold; Title.TextSize = 14; Title.BackgroundTransparency = 1
     
     local KeyInput = Instance.new("TextBox", KeyFrame)
-    KeyInput.Size = UDim2.new(0.85, 0, 0, 32)
-    KeyInput.Position = UDim2.new(0.075, 0, 0, 115)
-    KeyInput.PlaceholderText = "أدخل المفتاح هنا..."
-    KeyInput.TextColor3 = Color3.new(1, 1, 1)
-    KeyInput.BackgroundColor3 = Color3.fromRGB(30, 30, 30)
-    KeyInput.Font = Enum.Font.GothamMedium
-    KeyInput.TextSize = 12
-    KeyInput.Text = ""
+    KeyInput.Size = UDim2.new(0.85, 0, 0, 32); KeyInput.Position = UDim2.new(0.075, 0, 0, 100)
+    KeyInput.PlaceholderText = "أدخل المفتاح (dogsken1)..."; KeyInput.TextColor3 = Color3.new(1, 1, 1)
+    KeyInput.BackgroundColor3 = Color3.fromRGB(30, 30, 30); KeyInput.Font = Enum.Font.GothamMedium
     Instance.new("UICorner", KeyInput).CornerRadius = UDim.new(0, 6)
     
     local CheckBtn = Instance.new("TextButton", KeyFrame)
-    CheckBtn.Size = UDim2.new(0.85, 0, 0, 32)
-    CheckBtn.Position = UDim2.new(0.075, 0, 0, 160)
-    CheckBtn.Text = "تفعيل اللوحة"
-    CheckBtn.TextColor3 = Color3.new(1, 1, 1)
-    CheckBtn.Font = Enum.Font.GothamBold
-    CheckBtn.TextSize = 12
-    CheckBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+    CheckBtn.Size = UDim2.new(0.85, 0, 0, 32); CheckBtn.Position = UDim2.new(0.075, 0, 0, 150)
+    CheckBtn.Text = "تفعيل اللوحة"; CheckBtn.TextColor3 = Color3.new(1, 1, 1)
+    CheckBtn.Font = Enum.Font.GothamBold; CheckBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
     Instance.new("UICorner", CheckBtn).CornerRadius = UDim.new(0, 6)
     
     CheckBtn.MouseButton1Click:Connect(function()
         if KeyInput.Text == "dogsken1" or KeyInput.Text == "DOGSKEN1" then
-            keyPassed = true
-            KeyGui:Destroy()
+            keyPassed = true; KeyGui:Destroy()
         else
-            CheckBtn.Text = "❌ مفتاح خاطئ!"
-            CheckBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
-            task.wait(1.5)
-            CheckBtn.Text = "تفعيل اللوحة"
-            CheckBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
+            CheckBtn.Text = "❌ مفتاح خاطئ!"; CheckBtn.BackgroundColor3 = Color3.fromRGB(150, 40, 40)
+            task.wait(1.5); CheckBtn.Text = "تفعيل اللوحة"; CheckBtn.BackgroundColor3 = Color3.fromRGB(0, 120, 255)
         end
     end)
     
@@ -248,213 +194,111 @@ end
 KeySystemCheck()
 
 --======================================
--- 4. محرك الطيران المطور (Smooth WASD Fly System)
---======================================
-local FlyBV, FlyBG, FlyConn
-
-local function StartFly()
-    local char = player.Character
-    local root = char and char:FindFirstChild("HumanoidRootPart")
-    local hum  = char and char:FindFirstChildOfClass("Humanoid")
-
-    if not root or not hum then return end
-
-    if FlyBV then FlyBV:Destroy() end
-    if FlyBG then FlyBG:Destroy() end
-    if FlyConn then FlyConn:Disconnect() end
-
-    hum.PlatformStand = true
-
-    FlyBG = Instance.new("BodyGyro")
-    FlyBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
-    FlyBG.P         = 5e4
-    FlyBG.CFrame    = root.CFrame
-    FlyBG.Parent    = root
-
-    FlyBV = Instance.new("BodyVelocity")
-    FlyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
-    FlyBV.Velocity = Vector3.zero
-    FlyBV.Parent   = root
-
-    FlyConn = RunService.RenderStepped:Connect(function()
-        if not Cfg.Fly then return end
-        local cam = Camera.CFrame
-        local spd = Cfg.FlySpeed
-        local vel = Vector3.zero
-
-        if UserInputService:IsKeyDown(Enum.KeyCode.W)          then vel = vel + cam.LookVector   * spd end
-        if UserInputService:IsKeyDown(Enum.KeyCode.S)          then vel = vel - cam.LookVector   * spd end
-        if UserInputService:IsKeyDown(Enum.KeyCode.A)          then vel = vel - cam.RightVector  * spd end
-        if UserInputService:IsKeyDown(Enum.KeyCode.D)          then vel = vel + cam.RightVector  * spd end
-        if UserInputService:IsKeyDown(Enum.KeyCode.Space)      then vel = vel + Vector3.yAxis    * spd end
-        if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl)then vel = vel - Vector3.yAxis    * spd end
-
-        FlyBV.Velocity = vel
-        FlyBG.CFrame   = cam
-    end)
-end
-
-local function StopFly()
-    Cfg.Fly = false
-    if FlyConn then FlyConn:Disconnect(); FlyConn = nil end
-    if FlyBV   then FlyBV:Destroy(); FlyBV = nil end
-    if FlyBG   then FlyBG:Destroy(); FlyBG = nil end
-
-    local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-    if hum then 
-        hum.PlatformStand = false 
-        hum:ChangeState(Enum.HumanoidStateType.Running)
-    end
-end
-
-player.CharacterAdded:Connect(function()
-    task.wait(1)
-    if Cfg.Fly then StartFly() end
-end)
-
---======================================
--- 5. تحميل واجهة WindUI
+-- 6. تحميل واجهة WindUI
 --======================================
 local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
 
 local Window = WindUI:CreateWindow({
-    Title = "LUX-ADK V3.0 🚀 (Ultimate)",
-    Icon = "star",
+    Title = "LUX-ADK V3.5 🚀 (Anti-Kick)",
+    Icon = "shield-check",
     Theme = "Dark",
 })
 
--- إنشاء التبويبات المدمجة
-local FarmTab     = Window:Tab({ Title = "Auto Farm Modes", Icon = "zap" })
-local MoveTab     = Window:Tab({ Title = "Movement & Speed", Icon = "plane" })
+local FarmTab     = Window:Tab({ Title = "Safe Auto Farm", Icon = "zap" })
+local MoveTab     = Window:Tab({ Title = "Movement", Icon = "plane" })
 local PremiumTab  = Window:Tab({ Title = "VIP Premium", Icon = "crown" })
 local CodesTab    = Window:Tab({ Title = "Codes", Icon = "key" })
-local NewsTab     = Window:Tab({ Title = "News & Info", Icon = "newspaper" })
-local SuggestTab  = Window:Tab({ Title = "Misc & Settings", Icon = "settings" })
+local SettingsTab = Window:Tab({ Title = "Settings", Icon = "settings" })
 
 --======================================
--- 6. قسم الفارم التلقائي المدمج (Auto Farm Modes)
+-- 7. قسم الفارم الآمن والتنقل التلقائي
 --======================================
 
--- 🏆 NORM 1: Auto Win (Smooth Sky Travel)
+FarmTab:Dropdown({
+    Title = "🗺️ اختر العالم الحالي",
+    Icon = "map-pin",
+    Values = {"Auto Detect", "World 1", "World 2", "World 3"},
+    Value = "Auto Detect",
+    Default = "Auto Detect",
+    Callback = function(opt)
+        local val = type(opt) == "table" and opt[1] or opt
+        Cfg.SelectedWorld = val
+        notify("العالم", "تم تغيير النمط إلى: " .. tostring(val))
+    end
+})
+
+FarmTab:Dropdown({
+    Title = "🐢 سرعة التنقل الآمن (تفادي الطرد)",
+    Icon = "gauge",
+    Values = {"40 (آمن جداً)", "70 (متوازن)", "100 (سريع)", "150 (قد يسبب طرد)"},
+    Value = "70 (متوازن)",
+    Default = "70 (متوازن)",
+    Callback = function(opt)
+        local rawVal = type(opt) == "table" and opt[1] or opt
+        local num = tonumber(string.match(tostring(rawVal), "%d+"))
+        if num then Cfg.SafeWinSpeed = num end
+    end
+})
+
+-- ⭐ Auto Win الآمن والمحدث لجميع العوالم
 FarmTab:Toggle({
-    Title = "🏆 Mode 1: Auto Win (Smooth Sky Travel)",
+    Title = "🏆 Safe Auto Win (شامل لجميع العوالم)",
     Value = false,
     Callback = function(v)
-        Cfg.AutoWin = v
+        Cfg.AutoWinSafe = v
         if v then
             task.spawn(function()
-                while Cfg.AutoWin do
+                while Cfg.AutoWinSafe do
                     local char = player.Character
                     local root = char and char:FindFirstChild("HumanoidRootPart")
                     
-                    if root and Cfg.WinPos then
-                        local dist = (root.Position - Cfg.WinPos).Magnitude
+                    if root then
+                        local winTargetPos = FindWorldWinTarget()
+                        
+                        if winTargetPos then
+                            local dist = (root.Position - winTargetPos).Magnitude
 
-                        if dist > 5 then
-                            if not Cfg.Fly then
-                                Cfg.Fly = true
-                                StartFly()
+                            if dist > 10 then
+                                notify("Safe Farm 🛡️", "جارٍ الانتقال الآمن لمنطقة الفوز...", 2)
+
+                                local oldNoclip = Cfg.Noclip
+                                Cfg.Noclip = true
+
+                                -- انتقال انسيابي بطيء لتفادي Anti-Cheat
+                                local startPos = root.Position
+                                local targetPos = Vector3.new(winTargetPos.X, winTargetPos.Y + 3, winTargetPos.Z)
+                                local distance = (startPos - targetPos).Magnitude
+                                local travelTime = distance / Cfg.SafeWinSpeed
+
+                                local tweenInfo = TweenInfo.new(travelTime, Enum.EasingStyle.Linear)
+                                local tween = TweenService:Create(root, tweenInfo, {CFrame = CFrame.new(targetPos)})
+                                tween:Play()
+                                tween.Completed:Wait()
+
+                                Cfg.Noclip = oldNoclip
+
+                                if Cfg.AutoWinSafe and root.Parent then
+                                    notify("Safe Farm 🏆", "تم الوصول! جاري إعادة الرسبون...", 3)
+                                    task.wait(2)
+                                    local hum = char:FindFirstChildOfClass("Humanoid")
+                                    if hum then hum.Health = 0 end
+                                    task.wait(4)
+                                end
                             end
-                            local oldNoclip = Cfg.Noclip
-                            Cfg.Noclip = true
-
-                            notify("Auto Win 🏆", "1/3 جارٍ الارتفاع للسماء...", 2)
-                            local riseStart = root.CFrame
-                            local riseEnd = riseStart * CFrame.new(0, Cfg.WinHeight, 0)
-
-                            for i = 0, 1, 0.05 do
-                                if not Cfg.AutoWin or not root.Parent then break end
-                                root.CFrame = riseStart:Lerp(riseEnd, i)
-                                task.wait(0.02)
-                            end
-
-                            if not Cfg.AutoWin or not root.Parent then Cfg.Noclip = oldNoclip; StopFly(); return end
-                            task.wait(0.2)
-
-                            notify("Auto Win 🏆", "2/3 جارٍ الطيران نحو نقطة النهاية...", 2)
-                            local startCF = root.CFrame
-                            local targetPos = Vector3.new(Cfg.WinPos.X, root.Position.Y, Cfg.WinPos.Z)
-                            local targetCF = CFrame.new(targetPos, Vector3.new(targetPos.X, targetPos.Y, targetPos.Z + 1))
-
-                            local distance = (root.Position - targetPos).Magnitude
-                            local steps = math.floor(distance / (Cfg.WinSpeed / 30))
-
-                            for i = 1, steps do
-                                if not Cfg.AutoWin or not root.Parent then break end
-                                root.CFrame = startCF:Lerp(targetCF, i/steps)
-                                task.wait(0.03)
-                            end
-
-                            if not Cfg.AutoWin or not root.Parent then Cfg.Noclip = oldNoclip; StopFly(); return end
-                            task.wait(0.2)
-
-                            notify("Auto Win 🏆", "3/3 جارٍ الهبوط والمطالبة بالفوز...", 2)
-                            local currentCF = root.CFrame
-                            local finalCF = CFrame.new(Cfg.WinPos)
-
-                            for i = 0, 1, 0.01 do
-                                if not Cfg.AutoWin or not root.Parent then break end
-                                root.CFrame = currentCF:Lerp(finalCF, i)
-                                task.wait(0.01)
-                            end
-
-                            if root.Parent then root.CFrame = finalCF end
-
-                            Cfg.Noclip = oldNoclip
-                            StopFly()
-
-                            notify("Auto Win 🏆", "تم الوصول بنجاح! إعادة الرسبون خلال 3 ثوانٍ...", 3)
+                        else
+                            notify("تنبيه ⚠️", "لم يتم العثور على منطقة الفوز تلقائياً. تأكد من تحديد العالم!")
                             task.wait(3)
-
-                            local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
-                            if hum then hum.Health = 0 end
-
-                            notify("Auto Win 🏆", "جارٍ إعادة التجميع... الدورة التالية بعد 5 ثوانٍ.", 5)
-                            task.wait(5)
                         end
                     end
-                    task.wait(0.1)
+                    task.wait(0.5)
                 end
             end)
         end
     end
 })
 
--- ⚡ MODE 2: Auto Tween (World 3 Waypoints)
 FarmTab:Toggle({
-    Title = "⚡ Mode 2: Auto Tween (World 3 Waypoints)",
-    Value = false,
-    Callback = function(v)
-        Cfg.AutoTweenW3 = v
-        if v then
-            task.spawn(function()
-                while Cfg.AutoTweenW3 do
-                    local character = player.Character
-                    local rootPart = character and character:FindFirstChild("HumanoidRootPart")
-                    if rootPart then
-                        for _, targetPos in ipairs(world3Waypoints) do
-                            if not Cfg.AutoTweenW3 then break end
-                            local distance = (rootPart.Position - targetPos).Magnitude
-                            local tweenInfo = TweenInfo.new(distance / 220, Enum.EasingStyle.Linear)
-                            local tween = TweenService:Create(rootPart, tweenInfo, {CFrame = CFrame.new(targetPos)})
-                            tween:Play()
-                            tween.Completed:Wait()
-                        end
-                        if Cfg.AutoTweenW3 then
-                            task.wait(0.8)
-                            repeat task.wait(0.1) until not Cfg.AutoTweenW3 or (rootPart.Position.Z < -800)
-                        end
-                    else task.wait(0.5) end
-                    task.wait(0.1)
-                end
-            end)
-        end
-    end
-})
-
--- 🏃 MODE 3: Auto Walk Simulator (Simulate Movement)
-FarmTab:Toggle({
-    Title = "🏃 Mode 3: Auto Walk Simulator (Forward/Backward)",
+    Title = "🏃 محاكاة المشي (Auto Walk Sim)",
     Value = false,
     Callback = function(v)
         Cfg.AutoWalkSim = v
@@ -465,33 +309,10 @@ FarmTab:Toggle({
                     local hum  = char and char:FindFirstChildOfClass("Humanoid")
                     if hum then
                         hum:Move(Vector3.new(0, 0, 1), true)
-                        task.wait(0.1)
+                        task.wait(0.2)
                         hum:Move(Vector3.new(0, 0, -1), true)
                     end
-                    task.wait(0.1)
-                end
-            end)
-        end
-    end
-})
-
--- 🎯 MODE 4: Smart Walk (Camera Relative Direction)
-FarmTab:Toggle({
-    Title = "🎯 Mode 4: Smart Walk (Camera Look Direction)",
-    Value = false,
-    Callback = function(v)
-        Cfg.AutoWalkSmart = v
-        if v then
-            task.spawn(function()
-                while Cfg.AutoWalkSmart do
-                    local char = player.Character
-                    local hum  = char and char:FindFirstChildOfClass("Humanoid")
-                    if hum and hum.Health > 0 then
-                        local camLook = Camera.CFrame.LookVector
-                        local moveDir = Vector3.new(camLook.X, 0, camLook.Z).Unit
-                        if moveDir.Magnitude > 0 then hum:Move(moveDir, false) end
-                    end
-                    task.wait()
+                    task.wait(0.2)
                 end
             end)
         end
@@ -499,11 +320,51 @@ FarmTab:Toggle({
 })
 
 --======================================
--- 7. قسم الحركة والسرعات (Movement Tab)
+-- 8. قسم الحركة والتنقل (Movement Tab)
 --======================================
+
+local FlyBV, FlyBG, FlyConn
+local function StartFly()
+    local char = player.Character
+    local root = char and char:FindFirstChild("HumanoidRootPart")
+    local hum  = char and char:FindFirstChildOfClass("Humanoid")
+    if not root or not hum then return end
+
+    if FlyBV then FlyBV:Destroy() end
+    if FlyBG then FlyBG:Destroy() end
+    if FlyConn then FlyConn:Disconnect() end
+
+    hum.PlatformStand = true
+    FlyBG = Instance.new("BodyGyro", root); FlyBG.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    FlyBV = Instance.new("BodyVelocity", root); FlyBV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+
+    FlyConn = RunService.RenderStepped:Connect(function()
+        if not Cfg.Fly then return end
+        local cam = Camera.CFrame
+        local spd = Cfg.FlySpeed
+        local vel = Vector3.zero
+
+        if UserInputService:IsKeyDown(Enum.KeyCode.W) then vel = vel + cam.LookVector * spd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.S) then vel = vel - cam.LookVector * spd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.A) then vel = vel - cam.RightVector * spd end
+        if UserInputService:IsKeyDown(Enum.KeyCode.D) then vel = vel + cam.RightVector * spd end
+        
+        FlyBV.Velocity = vel
+        FlyBG.CFrame = cam
+    end)
+end
+
+local function StopFly()
+    Cfg.Fly = false
+    if FlyConn then FlyConn:Disconnect() end
+    if FlyBV then FlyBV:Destroy() end
+    if FlyBG then FlyBG:Destroy() end
+    local hum = player.Character and player.Character:FindFirstChildOfClass("Humanoid")
+    if hum then hum.PlatformStand = false end
+end
 
 MoveTab:Toggle({
-    Title = "✈️ Toggle Fly Mode (WASD + Space/Ctrl)",
+    Title = "✈️ طيران WASD آمن",
     Value = false,
     Callback = function(v)
         Cfg.Fly = v
@@ -511,324 +372,106 @@ MoveTab:Toggle({
     end
 })
 
-MoveTab:Dropdown({
-    Title = "Fly Speed",
-    Icon = "zap",
-    Values = {"50", "100", "200", "300", "500", "1000", "2000"},
-    Value = "300",
-    Default = "300",
-    Callback = function(option)
-        local rawVal = type(option) == "table" and option[1] or option
-        local num = tonumber(string.match(tostring(rawVal), "%d+"))
-        if num then Cfg.FlySpeed = num end
-    end
-})
-
 MoveTab:Toggle({
-    Title = "🧱 Noclip (اختراق الجدران)",
+    Title = "🧱 اختراق الجدران (Noclip)",
     Value = false,
-    Callback = function(v)
-        Cfg.Noclip = v
-    end
+    Callback = function(v) Cfg.Noclip = v end
 })
 
 MoveTab:Dropdown({
-    Title = "Walk Speed",
+    Title = "سرعة المشي (WalkSpeed)",
     Icon = "zap",
-    Values = {"16", "30", "50", "80", "100", "150", "200", "300", "500"},
+    Values = {"16", "30", "50", "80", "100"},
     Value = "16",
     Default = "16",
-    Callback = function(option)
-        local rawVal = type(option) == "table" and option[1] or option
+    Callback = function(opt)
+        local rawVal = type(opt) == "table" and opt[1] or opt
         local num = tonumber(string.match(tostring(rawVal), "%d+"))
         if num then Cfg.WalkSpeed = num end
     end
 })
 
-MoveTab:Dropdown({
-    Title = "Jump Power",
-    Icon = "zap",
-    Values = {"50", "70", "100", "130", "160", "200", "300", "500"},
-    Value = "50",
-    Default = "50",
-    Callback = function(option)
-        local rawVal = type(option) == "table" and option[1] or option
-        local num = tonumber(string.match(tostring(rawVal), "%d+"))
-        if num then Cfg.JumpPower = num end
-    end
-})
-
--- حلقة تطبيق الفيزياء وتطبيق Noclip/Speed باستمرار
 RunService.Stepped:Connect(function()
     local char = player.Character
     if char then
-        local hum  = char:FindFirstChildOfClass("Humanoid")
-        
-        -- Noclip
         if Cfg.Noclip then
-            for _, part in pairs(char:GetDescendants()) do
-                if part:IsA("BasePart") and part.CanCollide then
-                    part.CanCollide = false
-                end
+            for _, p in pairs(char:GetDescendants()) do
+                if p:IsA("BasePart") then p.CanCollide = false end
             end
         end
-
-        -- Walk Speed & Jump Power
+        local hum = char:FindFirstChildOfClass("Humanoid")
         if hum and hum.Health > 0 then
             hum.WalkSpeed = Cfg.WalkSpeed
-            hum.UseJumpPower = true
-            hum.JumpPower = Cfg.JumpPower
         end
     end
 end)
 
 --======================================
--- 8. قسم الحماية والبريميوم (VIP Premium Tab)
+-- 9. قسم البريميوم والمفاهيم الأخرى
 --======================================
 
-local gmBasicConn, basicDangers = nil, {"kill", "lava", "laser", "spike"}
-local function clearBasicDanger(obj)
-    if obj:IsA("BasePart") then
-        local name = obj.Name:lower()
-        for _, kw in ipairs(basicDangers) do
-            if name:find(kw) then pcall(function() obj:Destroy() end) break end
-        end
-    end
-end
-
 PremiumTab:Toggle({
-    Title = "🛡️ God Mode (Basic Hazards)",
+    Title = "🛑 Anti-AFK (منع الطرد بسبب الخمول)",
     Value = false,
-    Callback = function(state)
-        Cfg.GodModeBasic = state
-        if state then
-            for _, obj in pairs(workspace:GetDescendants()) do clearBasicDanger(obj) end
-            gmBasicConn = workspace.DescendantAdded:Connect(clearBasicDanger)
-        else
-            if gmBasicConn then gmBasicConn:Disconnect() end
-        end
-    end
-})
-
-local gmAdvConn, advDangers = nil, {"tsunami", "wave", "water", "flood", "acid", "trap", "brick", "ball", "enemy", "zombie", "dummy", "npc", "killer", "hurt", "disaster"}
-local function clearAdvDanger(obj)
-    if obj:IsA("BasePart") or obj:IsA("Model") then
-        local name = obj.Name:lower()
-        for _, kw in ipairs(advDangers) do
-            if name:find(kw) then pcall(function() obj:Destroy() end) break end
-        end
-    end
-end
-
-PremiumTab:Toggle({
-    Title = "⭐ VIP God Mode II (Anti-Tsunami & Disasters)",
-    Value = false,
-    Callback = function(state)
-        if not isPremiumUser then
-            notify("VIP Premium 🌟", "هذه الميزة مقفلة للبريميوم فقط!")
-            return
-        end
-        Cfg.GodModeAdv = state
-        if state then
-            for _, obj in pairs(workspace:GetDescendants()) do clearAdvDanger(obj) end
-            gmAdvConn = workspace.DescendantAdded:Connect(clearAdvDanger)
-        else
-            if gmAdvConn then gmAdvConn:Disconnect() end
-        end
-    end
-})
-
-local airPart = Instance.new("Part")
-airPart.Size = Vector3.new(7, 1, 7)
-airPart.Transparency = 0.5
-airPart.Color = Color3.fromRGB(0, 255, 255)
-airPart.Material = Enum.Material.Neon
-airPart.Anchored = true
-airPart.CanCollide = true
-
-local airWalkConn = nil
-PremiumTab:Toggle({
-    Title = "⭐ VIP Air Walk (منصة المشي بالهواء)",
-    Value = false,
-    Callback = function(state)
-        if not isPremiumUser then
-            notify("VIP Premium 🌟", "هذه الميزة مقفلة للبريميوم فقط!")
-            return
-        end
-        Cfg.AirWalk = state
-        if state then
-            airPart.Parent = workspace
-            airWalkConn = RunService.RenderStepped:Connect(function()
-                local hrp = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
-                if hrp then airPart.CFrame = hrp.CFrame * CFrame.new(0, -3.5, 0) end
-            end)
-        else
-            if airWalkConn then airWalkConn:Disconnect() end
-            airPart.Parent = nil
-        end
-    end
-})
-
-PremiumTab:Toggle({
-    Title = "⭐ VIP Infinite Jump (قفز لانهائي)",
-    Value = false,
-    Callback = function(state)
-        if not isPremiumUser then
-            notify("VIP Premium 🌟", "هذه الميزة مقفلة للبريميوم فقط!")
-            return
-        end
-        Cfg.InfiniteJump = state
-    end
-})
-
-UserInputService.JumpRequest:Connect(function()
-    if Cfg.InfiniteJump and player.Character and player.Character:FindFirstChildOfClass("Humanoid") then
-        player.Character:FindFirstChildOfClass("Humanoid"):ChangeState(Enum.HumanoidStateType.Jumping)
-    end
-end)
-
-local antiAfkConn = nil
-PremiumTab:Toggle({
-    Title = "🛑 Anti-AFK (منع الطرد التلقائي)",
-    Value = false,
-    Callback = function(state)
-        Cfg.AntiAFK = state
-        if state then
-            antiAfkConn = player.Idled:Connect(function()
+    Callback = function(v)
+        if v then
+            player.Idled:Connect(function()
                 VirtualUser:Button2Down(Vector2.new(0,0), Camera.CFrame)
                 task.wait(0.5)
                 VirtualUser:Button2Up(Vector2.new(0,0), Camera.CFrame)
             end)
-        else
-            if antiAfkConn then antiAfkConn:Disconnect(); antiAfkConn = nil end
         end
     end
 })
 
 PremiumTab:Button({
-    Title = "🗑️ Delete Diamonds & Lag Junk",
+    Title = "🗑️ إزالة عناصر اللاق (Clear Lag)",
     Callback = function()
-        local count = 0
-        local junkNames = {"diamond", "gem", "crystal", "coin", "lag", "mesh", "effect"}
+        local c = 0
         for _, obj in pairs(workspace:GetDescendants()) do
-            if obj:IsA("BasePart") or obj:IsA("MeshPart") or obj:IsA("Decal") or obj:IsA("Texture") then
-                local name = obj.Name:lower()
-                for _, kw in ipairs(junkNames) do
-                    if name:find(kw) then pcall(function() obj:Destroy() count = count + 1 end) break end
-                end
+            if obj:IsA("Decal") or obj:IsA("Texture") or obj:IsA("ParticleEmitter") then
+                pcall(function() obj:Destroy() c = c + 1 end)
             end
         end
-        notify("Anti-Lag", "تم تنظيف " .. count .. " من جزيئات اللاق!")
+        notify("Anti-Lag", "تم تنظيف " .. c .. " عنصر تسبب باللاق!")
     end
 })
 
 --======================================
--- 9. قسم الكودات (Codes Tab - Single Use Lock)
+-- 10. قسم الأكواد والإعدادات
 --======================================
 local inputCodeText = ""
 CodesTab:Input({
     Title = "أدخل كود البريميوم",
-    Placeholder = "أدخل الكود هنا...",
-    Callback = function(txt)
-        inputCodeText = txt
-    end
+    Placeholder = "أدخل الكود...",
+    Callback = function(txt) inputCodeText = txt end
 })
 
 CodesTab:Button({
     Title = "تفعيل الكود 🎁",
     Callback = function()
         local inputCode = string.upper(string.gsub(inputCodeText, "%s+", ""))
-        if inputCode == "" then
-            notify("تنبيه", "⚠️ يرجى كتابة الكود أولاً!")
-            return
+        if validCodes[inputCode] and not codeData.usedCodes[inputCode] then
+            codeData.usedCodes[inputCode] = player.Name
+            saveCodeData()
+            isPremiumUser = true
+            notify("نجاح! 🎉", "تم تفعيل البريميوم بنجاح!")
+        else
+            notify("خطأ ❌", "الكود مستعمل أو غير صحيح!")
         end
-
-        if not validCodes[inputCode] then
-            notify("خطأ", "❌ الكود غير صحيح!")
-            return
-        end
-
-        if codeData.usedCodes[inputCode] then
-            notify("خطأ", "❌ هذا الكود تم استخدامه سابقاً ولا يمكن استخدامه مجدداً!")
-            return
-        end
-
-        codeData.usedCodes[inputCode] = player.Name
-        local currentTime = os.time()
-        local currentExpiry = (codeData.premiumUntil and codeData.premiumUntil > currentTime) and codeData.premiumUntil or currentTime
-        codeData.premiumUntil = currentExpiry + (7 * 24 * 60 * 60)
-        saveCodeData()
-
-        isPremiumUser = true
-        notify("مبروك! 🌟", "🎉 تم تفعيل البريميوم لمدة 7 أيام بنجاح!", 5)
     end
 })
 
---======================================
--- 10. قسم الأخبار والإعدادات (News & Misc Tab)
---======================================
-local newsList = {
-    "🚀 إطلاق النسخة المدمجة الكبرى LUX-ADK V3.0!",
-    "🏆 دمج 4 أنماط فارم مختلفة تلائم كافة العوالم.",
-    "✈️ تحسين وتطوير طيران WASD السلس مع التحكم بالسرعة.",
-    "🎁 تفعيل نظام الـ 40 كود طويلة للاستخدام الفردي المرة الواحدة.",
-    "🛡️ دمج حماية Anti-AFK وإزالة عناصر اللاق."
-}
-
-for _, newsText in ipairs(newsList) do
-    NewsTab:Button({
-        Title = newsText,
-        Callback = function() end
-    })
-end
-
--- الاقتراحات وإلغاء السكربت
-local suggestText = ""
-SuggestTab:Input({
-    Title = "اكتب اقتراحك",
-    Placeholder = "اكتب اقتراحك هنا...",
-    Callback = function(txt)
-        suggestText = txt
-    end
-})
-
-SuggestTab:Button({
-    Title = "إرسال وحفظ الاقتراح 💬",
+SettingsTab:Button({
+    Title = "❌ إغلاق السكربت (Unload)",
     Callback = function()
-        if suggestText ~= "" then
-            local activeSuggestions = {}
-            if readfile and isfile and isfile(fileName) then
-                pcall(function() activeSuggestions = HttpService:JSONDecode(readfile(fileName)) end)
-            end
-            table.insert(activeSuggestions, {name = player.Name, text = suggestText})
-            if writefile then
-                pcall(function() writefile(fileName, HttpService:JSONEncode(activeSuggestions)) end)
-            end
-            notify("تم الإرسال", "تم حفظ اقتراحك بنجاح! ✓")
-        end
-    end
-})
-
-SuggestTab:Button({
-    Title = "❌ Unload Hub / إغلاق السكربت بالكامل",
-    Callback = function()
-        Cfg.AutoWin       = false
-        Cfg.AutoTweenW3   = false
-        Cfg.AutoWalkSim   = false
-        Cfg.AutoWalkSmart = false
-        Cfg.InfiniteJump  = false
+        Cfg.AutoWinSafe = false
+        Cfg.AutoWalkSim = false
         StopFly()
-        
-        if antiAfkConn then antiAfkConn:Disconnect() end
-        if gmBasicConn then gmBasicConn:Disconnect() end
-        if gmAdvConn then gmAdvConn:Disconnect() end
-        if airWalkConn then airWalkConn:Disconnect() end
-        if airPart then airPart:Destroy() end
-        
         Window:Destroy()
-        notify("Unloaded", "تم إيقاف السكربت وإغلاق اللوحة بنجاح!")
+        notify("إغلاق", "تم إيقاف السكربت وإغلاق الواجهة!")
     end
 })
 
-notify("LUX-ADK V3.0 Ultimate Loaded", "تم تحميل السكربت المدمج بنجاح!", 5)
+notify("LUX-ADK V3.5 Loaded", "جاهز للاستخدام! تم تفعيل حماية Anti-Kick.", 5)
 
